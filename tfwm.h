@@ -42,6 +42,9 @@ static xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode);
 
 static void tfwm_exit(char **cmd);
 static void tfwm_goto_workspace(char **cmd);
+static void tfwm_workspace_use_tiling(char **cmd);
+static void tfwm_workspace_use_floating(char **cmd);
+static void tfwm_workspace_use_window(char **cmd);
 
 /* ====================== EVENT HANDLER ====================== */
 

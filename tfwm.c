@@ -80,6 +80,18 @@ static void tfwm_goto_workspace(char **cmd) {
   }
 }
 
+static void tfwm_workspace_use_tiling(char **cmd) {
+  workspaces[gp_active_ws].default_layout = TILING;
+}
+
+static void tfwm_workspace_use_floating(char **cmd) {
+  workspaces[gp_active_ws].default_layout = FLOATING;
+}
+
+static void tfwm_workspace_use_window(char **cmd) {
+  workspaces[gp_active_ws].default_layout = WINDOW;
+}
+
 /* ====================== EVENT HANDLER ====================== */
 
 static void tfwm_handle_keypress(xcb_generic_event_t *evt) {
