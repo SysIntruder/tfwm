@@ -1,6 +1,7 @@
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <string.h>
 #include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
@@ -11,8 +12,11 @@
 
 static xcb_connection_t *gp_conn;
 static xcb_screen_t *gp_scrn;
-static xcb_drawable_t gp_win;
+static xcb_window_t gp_win;
+
 static uint32_t gp_vals[3];
+static int gp_active_ws;
+static int gp_debug_on;
 
 /* ========================== UTILS ========================== */
 
@@ -67,6 +71,15 @@ static void tfwm_exit(char **cmd) {
   }
 }
 
+static void tfwm_goto_workspace(char **cmd) {
+  for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
+    char *ws = (char *)cmd[0];
+    if (tfwm_util_compare_str(ws, workspaces[i].name) == 0) {
+      gp_active_ws = i;
+    }
+  }
+}
+
 /* ====================== EVENT HANDLER ====================== */
 
 static void tfwm_handle_keypress(xcb_generic_event_t *evt) {
@@ -101,6 +114,130 @@ static int tfwm_handle_event(void) {
   free(evt);
   xcb_flush(gp_conn);
   return ret;
+}
+
+/* ========================== DEBUG ========================== */
+
+static char *tfwm_debug_workspace_str(void) {
+  size_t n = 0;
+
+  /* Workspace Layout Display */
+  uint16_t layout = workspaces[gp_active_ws].default_layout;
+  char *ld = malloc(0);
+  switch (layout) {
+  case (TILING):
+    n += strlen(LAYOUT_TILING_DISPLAY);
+    ld = realloc(ld, (strlen(LAYOUT_TILING_DISPLAY) + 1));
+    ld = LAYOUT_TILING_DISPLAY;
+    break;
+  case (FLOATING):
+    n += strlen(LAYOUT_FLOATING_DISPLAY);
+    ld = realloc(ld, (strlen(LAYOUT_FLOATING_DISPLAY) + 1));
+    ld = LAYOUT_FLOATING_DISPLAY;
+    break;
+  case (WINDOW):
+    n += strlen(LAYOUT_WINDOW_DISPLAY);
+    ld = realloc(ld, (strlen(LAYOUT_WINDOW_DISPLAY) + 1));
+    ld = LAYOUT_WINDOW_DISPLAY;
+    break;
+  }
+
+  if (strlen(ld) > 0) {
+    n += 1;
+  }
+
+  /* Workspace List */
+  size_t wsize = (sizeof(workspaces) / sizeof(*workspaces));
+
+  for (size_t i = 0; i < wsize; i++) {
+    n += strlen(workspaces[i].name);
+    if (i < (wsize - 1)) {
+      n += 1;
+    }
+  }
+  n += 3;
+
+  /* Combine String */
+  char *res = malloc(n);
+  res[0] = '\0';
+
+  if (strlen(ld) > 0) {
+    strcat(res, ld);
+    strcat(res, " ");
+  }
+
+  for (size_t i = 0; i < wsize; i++) {
+    if (i == gp_active_ws) {
+      strcat(res, "[");
+      strcat(res, workspaces[i].name);
+      strcat(res, "]");
+    } else {
+      strcat(res, workspaces[i].name);
+    }
+
+    if (i < (wsize - 1)) {
+      strcat(res, " ");
+    }
+  }
+
+  return res;
+}
+
+static void tfwm_debug_hud(void) {
+  xcb_generic_error_t *err;
+
+  xcb_font_t f = xcb_generate_id(gp_conn);
+  xcb_void_cookie_t fc =
+      xcb_open_font_checked(gp_conn, f, strlen(BAR_FONT_NAME), BAR_FONT_NAME);
+  err = xcb_request_check(gp_conn, fc);
+  if (err) {
+    tfwm_util_write_error("ERROR: xcb_open_font_checked\n");
+    return;
+  }
+
+  xcb_gcontext_t gc = xcb_generate_id(gp_conn);
+  uint32_t vals[4];
+  vals[0] = BAR_FOREGROUND;
+  vals[1] = BAR_BACKGROUND;
+  vals[2] = f;
+  vals[3] = 0;
+  xcb_void_cookie_t gcc =
+      xcb_create_gc_checked(gp_conn, gc, gp_scrn->root,
+                            XCB_GC_FOREGROUND | XCB_GC_BACKGROUND |
+                                XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
+                            vals);
+  err = xcb_request_check(gp_conn, gcc);
+  if (err) {
+    tfwm_util_write_error("ERROR: xcb_create_gc_checked\n");
+    return;
+  }
+
+  fc = xcb_close_font_checked(gp_conn, f);
+  err = xcb_request_check(gp_conn, fc);
+  if (err) {
+    tfwm_util_write_error("ERROR: xcb_close_font_checked\n");
+    return;
+  }
+
+  char *label = tfwm_debug_workspace_str();
+
+  xcb_void_cookie_t tc =
+      xcb_image_text_8_checked(gp_conn, strlen(label), gp_scrn->root, gc, 0,
+                               gp_scrn->height_in_pixels, label);
+  err = xcb_request_check(gp_conn, tc);
+  if (err) {
+    tfwm_util_write_error("ERROR: xcb_image_text_8_checked\n");
+    return;
+  }
+
+  gcc = xcb_free_gc(gp_conn, gc);
+  err = xcb_request_check(gp_conn, gcc);
+  if (err) {
+    tfwm_util_write_error("ERROR: xcb_free_gc\n");
+    return;
+  }
+
+  xcb_flush(gp_conn);
 }
 
 /* ========================== SETUP ========================== */
@@ -157,8 +294,16 @@ int main(int argc, char *argv[]) {
     tfwm_init();
   }
 
+  gp_debug_on = 1;
+
   while (ret == 0) {
     ret = tfwm_handle_event();
+
+    if (gp_debug_on == 1) {
+      if (gp_scrn) {
+        tfwm_debug_hud();
+      }
+    }
   }
 
   return ret;

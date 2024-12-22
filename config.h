@@ -9,10 +9,37 @@
 #define MOD_SHIFT XCB_MOD_MASK_SHIFT
 #define MOD_CTRL XCB_MOD_MASK_SHIFT
 
+/* ======================= BAR CONTENT ======================= */
+
+#define BAR_FONT_NAME "fixed"
+#define BAR_FOREGROUND 0xFFFFFF
+#define BAR_BACKGROUND 0x000000
+
+#define LAYOUT_TILING_DISPLAY "[T]"
+#define LAYOUT_FLOATING_DISPLAY "[F]"
+#define LAYOUT_WINDOW_DISPLAY "[W]"
+
+/* ======================== WORKSPACES ======================= */
+
+static tfwm_workspace_t workspaces[] = {
+    {TILING, "1"},
+    {FLOATING, "2"},
+    {WINDOW, "3"},
+};
+
+/* ========================= COMMAND ========================= */
+
+static char *goto_ws1[] = {"1", NULL};
+static char *goto_ws2[] = {"2", NULL};
+static char *goto_ws3[] = {"3", NULL};
+
 /* ========================= KEYBIND ========================= */
 
 static tfwm_keybind_t keybinds[] = {
-    {MOD_KEY | MOD_SHIFT, 0x0071, tfwm_exit, NULL}, /* 0x0071 = q */
+    {MOD_KEY | MOD_SHIFT, 0x0071, tfwm_exit, NULL},   /* 0x0071 = q */
+    {MOD_KEY, 0x0031, tfwm_goto_workspace, goto_ws1}, /* 0x0031 = 1 */
+    {MOD_KEY, 0x0032, tfwm_goto_workspace, goto_ws2}, /* 0x0032 = 2 */
+    {MOD_KEY, 0x0033, tfwm_goto_workspace, goto_ws3}, /* 0x0033 = 3 */
 };
 
 #endif // !CONFIG_H
