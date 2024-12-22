@@ -9,6 +9,16 @@
 #define MOD_SHIFT XCB_MOD_MASK_SHIFT
 #define MOD_CTRL XCB_MOD_MASK_SHIFT
 
+/* ========================== WINDOW ========================= */
+
+#define WINDOW_WIDTH 600
+#define WINDOW_HEIGHT 400
+#define MIN_WINDOW_WIDTH 60
+#define MIN_WINDOW_HEIGHT 40
+#define BORDER_WIDTH 1
+#define BORDER_ACTIVE 0xFFFFFF
+#define BORDER_INACTIVE 0x696969
+
 /* ======================= BAR CONTENT ======================= */
 
 #define BAR_FONT_NAME "fixed"
@@ -29,6 +39,8 @@ static tfwm_workspace_t workspaces[] = {
 
 /* ========================= COMMAND ========================= */
 
+static char *cmd_term[] = {"st", NULL};
+
 static char *goto_ws1[] = {"1", NULL};
 static char *goto_ws2[] = {"2", NULL};
 static char *goto_ws3[] = {"3", NULL};
@@ -37,6 +49,8 @@ static char *goto_ws3[] = {"3", NULL};
 
 static tfwm_keybind_t keybinds[] = {
     {MOD_KEY | MOD_SHIFT, 0x0071, tfwm_exit, NULL},       /* 0x0071 = q */
+    {MOD_KEY, 0x0071, tfwm_kill, NULL},                   /* 0x0071 = q */
+    {MOD_KEY, 0xff0d, tfwm_spawn, cmd_term},              /* 0xff0d = Return */
     {MOD_KEY, 0x0031, tfwm_goto_workspace, goto_ws1},     /* 0x0031 = 1 */
     {MOD_KEY, 0x0032, tfwm_goto_workspace, goto_ws2},     /* 0x0032 = 2 */
     {MOD_KEY, 0x0033, tfwm_goto_workspace, goto_ws3},     /* 0x0033 = 3 */

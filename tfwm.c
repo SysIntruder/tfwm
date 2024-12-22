@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
@@ -71,6 +72,48 @@ static void tfwm_exit(char **cmd) {
   }
 }
 
+static void tfwm_spawn(char **cmd) {
+  if (fork() == 0) {
+    setsid();
+    if (fork() != 0) {
+      _exit(0);
+    }
+    execvp((char *)cmd[0], (char **)cmd);
+    _exit(0);
+  }
+  wait(NULL);
+}
+
+static void tfwm_kill(char **cmd) { xcb_kill_client(gp_conn, gp_win); }
+
+static void tfwm_focus_window(xcb_window_t win) {
+  if (win == 0) {
+    return;
+  }
+  if (win == gp_scrn->root) {
+    return;
+  }
+
+  xcb_set_input_focus(gp_conn, XCB_INPUT_FOCUS_POINTER_ROOT, win,
+                      XCB_CURRENT_TIME);
+}
+static void tfwm_focus_color_window(xcb_window_t win, int focus) {
+  if (BORDER_WIDTH <= 0) {
+    return;
+  }
+  if (win == 0) {
+    return;
+  }
+  if (win == gp_scrn->root) {
+    return;
+  }
+
+  uint32_t vals[1];
+  vals[0] = focus ? BORDER_ACTIVE : BORDER_INACTIVE;
+  xcb_change_window_attributes(gp_conn, win, XCB_CW_BORDER_PIXEL, vals);
+  xcb_flush(gp_conn);
+}
+
 static void tfwm_goto_workspace(char **cmd) {
   for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
     char *ws = (char *)cmd[0];
@@ -103,6 +146,37 @@ static void tfwm_handle_keypress(xcb_generic_event_t *evt) {
       keybinds[i].func(keybinds[i].cmd);
     }
   }
+}
+
+static void tfwm_handle_map_request(xcb_generic_event_t *evt) {
+  xcb_map_request_event_t *e = (xcb_map_request_event_t *)evt;
+  xcb_map_window(gp_conn, e->window);
+  uint32_t vals[5];
+  vals[0] = (gp_scrn->width_in_pixels / 2) - (WINDOW_WIDTH / 2);
+  vals[1] = (gp_scrn->height_in_pixels / 2) - (WINDOW_HEIGHT / 2);
+  vals[2] = WINDOW_WIDTH;
+  vals[3] = WINDOW_HEIGHT;
+  vals[4] = BORDER_WIDTH;
+  xcb_configure_window(gp_conn, e->window,
+                       XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
+                           XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
+                           XCB_CONFIG_WINDOW_BORDER_WIDTH,
+                       vals);
+  xcb_flush(gp_conn);
+
+  gp_vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
+  xcb_change_window_attributes_checked(gp_conn, e->window, XCB_CW_EVENT_MASK,
+                                       gp_vals);
+  tfwm_focus_window(e->window);
+}
+
+static void tfwm_handle_focus_in(xcb_generic_event_t *evt) {
+  xcb_focus_in_event_t *e = (xcb_focus_in_event_t *)evt;
+  tfwm_focus_color_window(e->event, 1);
+}
+static void tfwm_handle_focus_out(xcb_generic_event_t *evt) {
+  xcb_focus_out_event_t *e = (xcb_focus_out_event_t *)evt;
+  tfwm_focus_color_window(e->event, 0);
 }
 
 static int tfwm_handle_event(void) {
