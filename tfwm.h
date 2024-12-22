@@ -7,11 +7,16 @@
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
+    uint8_t is_floating;
+    xcb_window_t window;
+} tfwm_window_t;
+
+typedef struct {
     uint16_t default_layout;
     char *name;
-    size_t windows_len;
-    size_t windows_cap;
-    xcb_window_t *windows;
+    size_t win_len;
+    size_t win_cap;
+    tfwm_window_t *win_list;
 } tfwm_workspace_t;
 
 typedef struct {
@@ -63,7 +68,7 @@ static void tfwm_workspace_use_window(char **cmd);
 
 static void tfwm_workspace_window_malloc(tfwm_workspace_t *ws);
 static void tfwm_workspace_window_realloc(tfwm_workspace_t *ws);
-static void tfwm_workspace_window_append(tfwm_workspace_t *ws, xcb_window_t w);
+static void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w);
 
 /* ====================== EVENT HANDLER ====================== */
 

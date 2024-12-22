@@ -85,7 +85,27 @@ static void tfwm_spawn(char **cmd) {
   wait(NULL);
 }
 
-static void tfwm_kill(char **cmd) { xcb_kill_client(gp_conn, gp_win); }
+static void tfwm_kill(char **cmd) {
+  int wid = -1;
+  for (int i = 0; i < workspaces[gp_cur_ws].win_len; i++) {
+    if (workspaces[gp_cur_ws].win_list[i].window == gp_win) {
+      wid = i;
+      break;
+    }
+  }
+  if (wid < 0) {
+    return;
+  }
+
+  xcb_kill_client(gp_conn, gp_win);
+
+  if (wid < workspaces[gp_cur_ws].win_len - 1) {
+    for (int i = wid + 1; i < workspaces[gp_cur_ws].win_len; i++) {
+      workspaces[gp_cur_ws].win_list[i - 1] = workspaces[gp_cur_ws].win_list[i];
+    }
+  }
+  workspaces[gp_cur_ws].win_len -= 1;
+}
 
 static void tfwm_focus_window(xcb_window_t win) {
   if (win == 0) {
@@ -153,12 +173,12 @@ static void tfwm_remap_workspace(void) {
     return;
   }
 
-  for (int i = 0; i < workspaces[gp_prev_ws].windows_len; i++) {
-    tfwm_unmap_window(workspaces[gp_prev_ws].windows[i]);
+  for (int i = 0; i < workspaces[gp_prev_ws].win_len; i++) {
+    tfwm_unmap_window(workspaces[gp_prev_ws].win_list[i].window);
   }
 
-  for (int i = 0; i < workspaces[gp_cur_ws].windows_len; i++) {
-    tfwm_map_window(workspaces[gp_cur_ws].windows[i]);
+  for (int i = 0; i < workspaces[gp_cur_ws].win_len; i++) {
+    tfwm_map_window(workspaces[gp_cur_ws].win_list[i].window);
   }
 }
 
@@ -175,31 +195,32 @@ static void tfwm_workspace_use_window(char **cmd) {
 }
 
 static void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
-  if (ws->windows) {
+  if (ws->win_list) {
     return;
   }
 
-  ws->windows = (xcb_window_t *)malloc(1 * sizeof(xcb_window_t));
-  ws->windows_cap = 1;
+  ws->win_list = (tfwm_window_t *)malloc(1 * sizeof(tfwm_window_t));
+  ws->win_cap = 1;
 }
 
 static void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
-  if (!ws->windows) {
+  if (!ws->win_list) {
     return;
   }
 
-  xcb_window_t *nwin = (xcb_window_t *)realloc(
-      ws->windows, (ws->windows_cap + 1) * sizeof(xcb_window_t));
+  tfwm_window_t *nwin = (tfwm_window_t *)realloc(
+      ws->win_list, (ws->win_cap + 1) * sizeof(tfwm_window_t));
   if (!nwin) {
     return;
   }
 
-  ws->windows = nwin;
-  ws->windows_cap += 1;
+  ws->win_list = nwin;
+  ws->win_cap += 1;
 }
 
-static void tfwm_workspace_window_append(tfwm_workspace_t *ws, xcb_window_t w) {
-  ws->windows[ws->windows_len++] = w;
+static void tfwm_workspace_window_append(tfwm_workspace_t *ws,
+                                         tfwm_window_t w) {
+  ws->win_list[ws->win_len++] = w;
 }
 
 /* ====================== EVENT HANDLER ====================== */
@@ -219,12 +240,13 @@ static void tfwm_handle_map_request(xcb_generic_event_t *evt) {
   xcb_map_request_event_t *e = (xcb_map_request_event_t *)evt;
 
   tfwm_workspace_t *ws = &workspaces[gp_cur_ws];
-  if (!ws->windows) {
+  if (!ws->win_list) {
     tfwm_workspace_window_malloc(ws);
-  } else if (ws->windows_cap == ws->windows_len) {
+  } else if (ws->win_cap == ws->win_len) {
     tfwm_workspace_window_realloc(ws);
   }
-  tfwm_workspace_window_append(ws, e->window);
+  tfwm_window_t win = {(ws->default_layout == FLOATING ? 1 : 0), e->window};
+  tfwm_workspace_window_append(ws, win);
 
   tfwm_map_window(e->window);
   uint32_t vals[5];
