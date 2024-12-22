@@ -59,9 +59,11 @@ static void tfwm_unmap_window(xcb_window_t win);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-static void tfwm_goto_workspace(char **cmd);
-static void tfwm_swap_prev_workspace(char **cmd);
 static void tfwm_remap_workspace(void);
+static void tfwm_goto_workspace(char **cmd);
+static void tfwm_next_workspace(char **cmd);
+static void tfwm_prev_workspace(char **cmd);
+static void tfwm_swap_prev_workspace(char **cmd);
 static void tfwm_workspace_use_tiling(char **cmd);
 static void tfwm_workspace_use_floating(char **cmd);
 static void tfwm_workspace_use_window(char **cmd);

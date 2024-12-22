@@ -148,26 +148,6 @@ static void tfwm_unmap_window(xcb_window_t win) {
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-static void tfwm_goto_workspace(char **cmd) {
-  gp_prev_ws = gp_cur_ws;
-  for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
-    char *ws = (char *)cmd[0];
-    if (tfwm_util_compare_str(ws, workspaces[i].name) == 0) {
-      gp_cur_ws = i;
-    }
-  }
-
-  tfwm_remap_workspace();
-}
-
-static void tfwm_swap_prev_workspace(char **cmd) {
-  gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
-  gp_cur_ws = gp_prev_ws ^ gp_cur_ws;
-  gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
-
-  tfwm_remap_workspace();
-}
-
 static void tfwm_remap_workspace(void) {
   if (gp_cur_ws == gp_prev_ws) {
     return;
@@ -180,6 +160,52 @@ static void tfwm_remap_workspace(void) {
   for (int i = 0; i < workspaces[gp_cur_ws].win_len; i++) {
     tfwm_map_window(workspaces[gp_cur_ws].win_list[i].window);
   }
+}
+
+static void tfwm_goto_workspace(char **cmd) {
+  gp_prev_ws = gp_cur_ws;
+  for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
+    char *ws = (char *)cmd[0];
+    if (tfwm_util_compare_str(ws, workspaces[i].name) == 0) {
+      gp_cur_ws = i;
+    }
+  }
+
+  tfwm_remap_workspace();
+}
+
+static void tfwm_next_workspace(char **cmd) {
+  size_t w_len = (sizeof(workspaces) / sizeof(*workspaces));
+  if ((gp_cur_ws + 1) == w_len) {
+    gp_prev_ws = gp_cur_ws;
+    gp_cur_ws = 0;
+  } else {
+    gp_prev_ws = gp_cur_ws;
+    gp_cur_ws += 1;
+  }
+
+  tfwm_remap_workspace();
+}
+
+static void tfwm_prev_workspace(char **cmd) {
+  size_t w_len = (sizeof(workspaces) / sizeof(*workspaces));
+  if ((gp_cur_ws - 1) < 0) {
+    gp_prev_ws = gp_cur_ws;
+    gp_cur_ws = w_len - 1;
+  } else {
+    gp_prev_ws = gp_cur_ws;
+    gp_cur_ws -= 1;
+  }
+
+  tfwm_remap_workspace();
+}
+
+static void tfwm_swap_prev_workspace(char **cmd) {
+  gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
+  gp_cur_ws = gp_prev_ws ^ gp_cur_ws;
+  gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
+
+  tfwm_remap_workspace();
 }
 
 static void tfwm_workspace_use_tiling(char **cmd) {
