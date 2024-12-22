@@ -32,9 +32,9 @@
 /* ======================== WORKSPACES ======================= */
 
 static tfwm_workspace_t workspaces[] = {
-    {TILING, "1"},
-    {FLOATING, "2"},
-    {WINDOW, "3"},
+    {TILING, "1", 0},
+    {FLOATING, "2", 0},
+    {WINDOW, "3", 0},
 };
 
 /* ========================= COMMAND ========================= */
@@ -54,6 +54,7 @@ static tfwm_keybind_t keybinds[] = {
     {MOD_KEY, 0x0031, tfwm_goto_workspace, goto_ws1},     /* 0x0031 = 1 */
     {MOD_KEY, 0x0032, tfwm_goto_workspace, goto_ws2},     /* 0x0032 = 2 */
     {MOD_KEY, 0x0033, tfwm_goto_workspace, goto_ws3},     /* 0x0033 = 3 */
+    {MOD_KEY, 0x0060, tfwm_swap_prev_workspace, NULL},    /* 0x0060 = grave */
     {MOD_KEY, 0x0074, tfwm_workspace_use_tiling, NULL},   /* 0x0074 = t */
     {MOD_KEY, 0x0066, tfwm_workspace_use_floating, NULL}, /* 0x0066 = f */
     {MOD_KEY, 0x0077, tfwm_workspace_use_window, NULL},   /* 0x0077 = w */

@@ -9,6 +9,9 @@
 typedef struct {
     uint16_t default_layout;
     char *name;
+    size_t windows_len;
+    size_t windows_cap;
+    xcb_window_t *windows;
 } tfwm_workspace_t;
 
 typedef struct {
@@ -43,12 +46,24 @@ static xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode);
 static void tfwm_exit(char **cmd);
 static void tfwm_spawn(char **cmd);
 static void tfwm_kill(char **cmd);
+
 static void tfwm_focus_window(xcb_window_t win);
 static void tfwm_focus_color_window(xcb_window_t win, int focus);
+static void tfwm_map_window(xcb_window_t win);
+static void tfwm_unmap_window(xcb_window_t win);
+
+/* =================== WORKSPACE FUNCTION ==================== */
+
 static void tfwm_goto_workspace(char **cmd);
+static void tfwm_swap_prev_workspace(char **cmd);
+static void tfwm_remap_workspace(void);
 static void tfwm_workspace_use_tiling(char **cmd);
 static void tfwm_workspace_use_floating(char **cmd);
 static void tfwm_workspace_use_window(char **cmd);
+
+static void tfwm_workspace_window_malloc(tfwm_workspace_t *ws);
+static void tfwm_workspace_window_realloc(tfwm_workspace_t *ws);
+static void tfwm_workspace_window_append(tfwm_workspace_t *ws, xcb_window_t w);
 
 /* ====================== EVENT HANDLER ====================== */
 

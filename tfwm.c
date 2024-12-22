@@ -16,7 +16,8 @@ static xcb_screen_t *gp_scrn;
 static xcb_window_t gp_win;
 
 static uint32_t gp_vals[3];
-static int gp_active_ws;
+static int gp_cur_ws;
+static int gp_prev_ws;
 static int gp_debug_on;
 
 /* ========================== UTILS ========================== */
@@ -97,6 +98,7 @@ static void tfwm_focus_window(xcb_window_t win) {
   xcb_set_input_focus(gp_conn, XCB_INPUT_FOCUS_POINTER_ROOT, win,
                       XCB_CURRENT_TIME);
 }
+
 static void tfwm_focus_color_window(xcb_window_t win, int focus) {
   if (BORDER_WIDTH <= 0) {
     return;
@@ -114,25 +116,90 @@ static void tfwm_focus_color_window(xcb_window_t win, int focus) {
   xcb_flush(gp_conn);
 }
 
+static void tfwm_map_window(xcb_window_t win) {
+  xcb_map_window(gp_conn, win);
+  xcb_flush(gp_conn);
+}
+
+static void tfwm_unmap_window(xcb_window_t win) {
+  xcb_unmap_window(gp_conn, win);
+  xcb_flush(gp_conn);
+}
+
+/* =================== WORKSPACE FUNCTION ==================== */
+
 static void tfwm_goto_workspace(char **cmd) {
+  gp_prev_ws = gp_cur_ws;
   for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
     char *ws = (char *)cmd[0];
     if (tfwm_util_compare_str(ws, workspaces[i].name) == 0) {
-      gp_active_ws = i;
+      gp_cur_ws = i;
     }
+  }
+
+  tfwm_remap_workspace();
+}
+
+static void tfwm_swap_prev_workspace(char **cmd) {
+  gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
+  gp_cur_ws = gp_prev_ws ^ gp_cur_ws;
+  gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
+
+  tfwm_remap_workspace();
+}
+
+static void tfwm_remap_workspace(void) {
+  if (gp_cur_ws == gp_prev_ws) {
+    return;
+  }
+
+  for (int i = 0; i < workspaces[gp_prev_ws].windows_len; i++) {
+    tfwm_unmap_window(workspaces[gp_prev_ws].windows[i]);
+  }
+
+  for (int i = 0; i < workspaces[gp_cur_ws].windows_len; i++) {
+    tfwm_map_window(workspaces[gp_cur_ws].windows[i]);
   }
 }
 
 static void tfwm_workspace_use_tiling(char **cmd) {
-  workspaces[gp_active_ws].default_layout = TILING;
+  workspaces[gp_cur_ws].default_layout = TILING;
 }
 
 static void tfwm_workspace_use_floating(char **cmd) {
-  workspaces[gp_active_ws].default_layout = FLOATING;
+  workspaces[gp_cur_ws].default_layout = FLOATING;
 }
 
 static void tfwm_workspace_use_window(char **cmd) {
-  workspaces[gp_active_ws].default_layout = WINDOW;
+  workspaces[gp_cur_ws].default_layout = WINDOW;
+}
+
+static void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
+  if (ws->windows) {
+    return;
+  }
+
+  ws->windows = (xcb_window_t *)malloc(1 * sizeof(xcb_window_t));
+  ws->windows_cap = 1;
+}
+
+static void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
+  if (!ws->windows) {
+    return;
+  }
+
+  xcb_window_t *nwin = (xcb_window_t *)realloc(
+      ws->windows, (ws->windows_cap + 1) * sizeof(xcb_window_t));
+  if (!nwin) {
+    return;
+  }
+
+  ws->windows = nwin;
+  ws->windows_cap += 1;
+}
+
+static void tfwm_workspace_window_append(tfwm_workspace_t *ws, xcb_window_t w) {
+  ws->windows[ws->windows_len++] = w;
 }
 
 /* ====================== EVENT HANDLER ====================== */
@@ -150,7 +217,16 @@ static void tfwm_handle_keypress(xcb_generic_event_t *evt) {
 
 static void tfwm_handle_map_request(xcb_generic_event_t *evt) {
   xcb_map_request_event_t *e = (xcb_map_request_event_t *)evt;
-  xcb_map_window(gp_conn, e->window);
+
+  tfwm_workspace_t *ws = &workspaces[gp_cur_ws];
+  if (!ws->windows) {
+    tfwm_workspace_window_malloc(ws);
+  } else if (ws->windows_cap == ws->windows_len) {
+    tfwm_workspace_window_realloc(ws);
+  }
+  tfwm_workspace_window_append(ws, e->window);
+
+  tfwm_map_window(e->window);
   uint32_t vals[5];
   vals[0] = (gp_scrn->width_in_pixels / 2) - (WINDOW_WIDTH / 2);
   vals[1] = (gp_scrn->height_in_pixels / 2) - (WINDOW_HEIGHT / 2);
@@ -162,7 +238,6 @@ static void tfwm_handle_map_request(xcb_generic_event_t *evt) {
                            XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
                            XCB_CONFIG_WINDOW_BORDER_WIDTH,
                        vals);
-  xcb_flush(gp_conn);
 
   gp_vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
   xcb_change_window_attributes_checked(gp_conn, e->window, XCB_CW_EVENT_MASK,
@@ -174,6 +249,7 @@ static void tfwm_handle_focus_in(xcb_generic_event_t *evt) {
   xcb_focus_in_event_t *e = (xcb_focus_in_event_t *)evt;
   tfwm_focus_color_window(e->event, 1);
 }
+
 static void tfwm_handle_focus_out(xcb_generic_event_t *evt) {
   xcb_focus_out_event_t *e = (xcb_focus_out_event_t *)evt;
   tfwm_focus_color_window(e->event, 0);
@@ -208,22 +284,26 @@ static char *tfwm_debug_workspace_str(void) {
   size_t n = 0;
 
   /* Workspace Layout Display */
-  uint16_t layout = workspaces[gp_active_ws].default_layout;
+  uint16_t layout = workspaces[gp_cur_ws].default_layout;
   char *ld = malloc(0);
+  char *ldr;
   switch (layout) {
   case (TILING):
     n += strlen(LAYOUT_TILING_DISPLAY);
-    ld = realloc(ld, (strlen(LAYOUT_TILING_DISPLAY) + 1));
+    ldr = realloc(ld, (strlen(LAYOUT_TILING_DISPLAY) + 1));
+    ld = ldr;
     ld = LAYOUT_TILING_DISPLAY;
     break;
   case (FLOATING):
     n += strlen(LAYOUT_FLOATING_DISPLAY);
-    ld = realloc(ld, (strlen(LAYOUT_FLOATING_DISPLAY) + 1));
+    ldr = realloc(ld, (strlen(LAYOUT_FLOATING_DISPLAY) + 1));
+    ld = ldr;
     ld = LAYOUT_FLOATING_DISPLAY;
     break;
   case (WINDOW):
     n += strlen(LAYOUT_WINDOW_DISPLAY);
-    ld = realloc(ld, (strlen(LAYOUT_WINDOW_DISPLAY) + 1));
+    ldr = realloc(ld, (strlen(LAYOUT_WINDOW_DISPLAY) + 1));
+    ld = ldr;
     ld = LAYOUT_WINDOW_DISPLAY;
     break;
   }
@@ -253,7 +333,7 @@ static char *tfwm_debug_workspace_str(void) {
   }
 
   for (size_t i = 0; i < wsize; i++) {
-    if (i == gp_active_ws) {
+    if (i == gp_cur_ws) {
       strcat(res, "[");
       strcat(res, workspaces[i].name);
       strcat(res, "]");
