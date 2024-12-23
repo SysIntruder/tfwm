@@ -78,13 +78,7 @@ void tfwm_bar(xcb_connection_t *conn, xcb_screen_t *scrn, int cur_ws) {
   xcb_generic_error_t *err;
 
   xcb_font_t f = xcb_generate_id(conn);
-  xcb_void_cookie_t fc =
-      xcb_open_font_checked(conn, f, strlen(BAR_FONT_NAME), BAR_FONT_NAME);
-  err = xcb_request_check(conn, fc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_open_font_checked\n");
-    return;
-  }
+  xcb_open_font(conn, f, strlen(BAR_FONT_NAME), BAR_FONT_NAME);
 
   xcb_gcontext_t gc = xcb_generate_id(conn);
   uint32_t vals[4];
@@ -92,51 +86,23 @@ void tfwm_bar(xcb_connection_t *conn, xcb_screen_t *scrn, int cur_ws) {
   vals[1] = BAR_BACKGROUND;
   vals[2] = f;
   vals[3] = 0;
-  xcb_void_cookie_t gcc =
-      xcb_create_gc_checked(conn, gc, scrn->root,
-                            XCB_GC_FOREGROUND | XCB_GC_BACKGROUND |
-                                XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
-                            vals);
-  err = xcb_request_check(conn, gcc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_create_gc_checked\n");
-    return;
-  }
-
-  fc = xcb_close_font_checked(conn, f);
-  err = xcb_request_check(conn, fc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_close_font_checked\n");
-    return;
-  }
+  xcb_create_gc(conn, gc, scrn->root,
+                XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT |
+                    XCB_GC_GRAPHICS_EXPOSURES,
+                vals);
 
   char *label = tfwm_bar_workspace_str(cur_ws);
 
   xcb_rectangle_t bar = {0, (scrn->height_in_pixels - BAR_HEIGHT),
                          scrn->width_in_pixels, BAR_HEIGHT};
 
-  xcb_void_cookie_t bc =
-      xcb_poly_fill_rectangle_checked(conn, scrn->root, gc, 1, &bar);
-  err = xcb_request_check(conn, bc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_poly_fill_rectangle_checked\n");
-    return;
-  }
+  xcb_poly_fill_rectangle(conn, scrn->root, gc, 1, &bar);
 
-  xcb_void_cookie_t tc = xcb_image_text_8_checked(
-      conn, strlen(label), scrn->root, gc, 0, scrn->height_in_pixels, label);
-  err = xcb_request_check(conn, tc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_image_text_8_checked\n");
-    return;
-  }
+  xcb_image_text_8(conn, strlen(label), scrn->root, gc, 0,
+                   scrn->height_in_pixels, label);
 
-  gcc = xcb_free_gc(conn, gc);
-  err = xcb_request_check(conn, gcc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_free_gc\n");
-    return;
-  }
+  xcb_close_font_checked(conn, f);
+  xcb_free_gc(conn, gc);
 
   xcb_flush(conn);
 }
