@@ -5,6 +5,21 @@ Minimal window manager with tiling and floating support. Designed as small and s
 as possible while fulfilling author's needs. Heavily inspired by "https://github.com/i3/i3"
 and "https://git.suckless.org/dwm".
 
+REQUIREMENTS
+------------
+
+xcb-util-keysyms, terminus-font
+
+NOTES
+-----
+
+If terminus not listed in xlsfonts
+    $ sudo pacman -S terminus-font
+    $ cd /usr/share/fonts/misc
+    $ sudo mkfontscale
+    $ sudo mkfontdir
+    $ xset +fp /usr/share/fonts/misc
+
 DISCLAIMER
 ----------
 

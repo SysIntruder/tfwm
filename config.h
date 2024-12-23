@@ -21,9 +21,9 @@
 
 /* ======================= BAR CONTENT ======================= */
 
-#define BAR_HEIGHT 14
+#define BAR_HEIGHT 12
 #define BAR_FONT_NAME                                                          \
-  "-misc-terminus  ttf -medium-r-normal--0-0-0-0-c-0-iso8859-1"
+  "-xos4-terminus-medium-r-normal--14-140-72-72-c-80-iso10646-1"
 #define BAR_FOREGROUND 0xFFFFFF
 #define BAR_BACKGROUND 0x000000
 #define BAR_FOREGROUND_ACTIVE 0x000000
