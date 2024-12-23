@@ -21,15 +21,17 @@
 
 /* ======================= BAR CONTENT ======================= */
 
+#define BAR_HEIGHT 14
 #define BAR_FONT_NAME                                                          \
   "-misc-terminus  ttf -medium-r-normal--0-0-0-0-c-0-iso8859-1"
 #define BAR_FOREGROUND 0xFFFFFF
 #define BAR_BACKGROUND 0x000000
-#define BAR_POS_Y 14
+#define BAR_FOREGROUND_ACTIVE 0x000000
+#define BAR_BACKGROUND_ACTIVE 0xFFFFFF
 
-#define LAYOUT_TILING_DISPLAY "<T>"
-#define LAYOUT_FLOATING_DISPLAY "<F>"
-#define LAYOUT_WINDOW_DISPLAY "<W>"
+#define LAYOUT_TILING_DISPLAY "[T]"
+#define LAYOUT_FLOATING_DISPLAY "[F]"
+#define LAYOUT_WINDOW_DISPLAY "[W]"
 
 /* ======================== WORKSPACES ======================= */
 

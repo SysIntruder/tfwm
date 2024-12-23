@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
     ret = tfwm_handle_event();
 
     if (gp_scrn) {
-      tfwm_bar(gp_conn, gp_scrn, gp_cur_ws);
+      tfwm_left_bar(gp_conn, gp_scrn, gp_cur_ws);
     }
   }
 
