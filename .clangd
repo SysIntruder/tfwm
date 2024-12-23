@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - -I/usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include
+    - -I/usr/local/include
+    - -I/usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include-fixed
+    - -I/usr/include
+    - -std=c99
+    - -xc
+Index:
+  Background: Skip

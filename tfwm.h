@@ -87,7 +87,8 @@ static tfwm_event_handler_t event_handlers[] = {
     {XCB_MAP_REQUEST, tfwm_handle_map_request},
     {XCB_FOCUS_IN, tfwm_handle_focus_in},
     {XCB_FOCUS_OUT, tfwm_handle_focus_out},
-    {XCB_NONE, NULL}};
+    {XCB_NONE, NULL},
+};
 
 /* ========================== DEBUG ========================== */
 
