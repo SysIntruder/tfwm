@@ -1,21 +1,28 @@
 .POSIX:
-ALL_WARNING = -Wall -Wextra -pedantic
 ALL_LDFLAGS = -lxcb -lxcb-keysyms $(LDFLAGS)
-ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS) -std=c17 $(ALL_WARNING)
+ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
+ALL_WARNING = $(ALL_CFLAGS) -Wall -Wextra -pedantic
 PREFIX = /usr/local
 LDLIBS = -lm
-BINDIR = $(PREFIX)/bin
+BIN_DIR = $(PREFIX)/bin
 
-all: tfwm
-install: all
-	mkdir -p $(DESTDIR)$(BINDIR)
-	cp -f tfwm $(DESTDIR)$(BINDIR)
-	chmod 755 $(DESTDIR)$(BINDIR)/tfwm
-tfwm: tfwm.o
-	$(CC) $(ALL_LDFLAGS) -o tfwm tfwm.o $(LDLIBS)
-tfwm.o: tfwm.c tfwm.h config.h
+objects = tfwm.o
+
+install: tfwm
+	mkdir -p $(BIN_DIR)
+	cp -f tfwm $(BIN_DIR)
+	chmod 755 $(BIN_DIR)/tfwm
+
+tfwm: $(objects)
+	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) $^ -o tfwm $(LDLIBS)
+
+$(objects): %.o: %.c
+	$(CC) -c $^ -o $@
+
 clean:
-	rm -f tfwm *.o
+	rm -rf tfwm *.o
+
 uninstall:
-	rm -f $(DESTDIR)$(BINDIR)/tfwm
-.PHONY: all install uninstall clean
+	rm -f $(BINDIR)/tfwm
+
+.PHONY: tfwm install uninstall clean
