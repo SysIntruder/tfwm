@@ -6,7 +6,7 @@ PREFIX = /usr/local
 LDLIBS = -lm
 BIN_DIR = $(PREFIX)/bin
 
-objects = tfwm.o
+objects = tfwm.o bar.o
 
 install: tfwm
 	mkdir -p $(BIN_DIR)

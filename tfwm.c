@@ -1,13 +1,10 @@
-#include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
-#include <xcb/xproto.h>
 
+#include "bar.h"
 #include "config.h"
 #include "tfwm.h"
 
@@ -18,11 +15,10 @@ static xcb_window_t gp_win;
 static uint32_t gp_vals[3];
 static int gp_cur_ws;
 static int gp_prev_ws;
-static int gp_debug_on;
 
 /* ========================== UTILS ========================== */
 
-static int tfwm_util_write_error(char *err) {
+int tfwm_util_write_error(char *err) {
   size_t n = 0;
   char *e = err;
   while ((*(e++)) != 0) {
@@ -37,7 +33,7 @@ static int tfwm_util_write_error(char *err) {
   return ret;
 }
 
-static int tfwm_util_compare_str(char *str1, char *str2) {
+int tfwm_util_compare_str(char *str1, char *str2) {
   char *c1 = str1;
   char *c2 = str2;
   while ((*c1) && ((*c1) == (*c2))) {
@@ -49,7 +45,7 @@ static int tfwm_util_compare_str(char *str1, char *str2) {
   return n;
 }
 
-static xcb_keycode_t *tfwm_get_keycodes(xcb_keysym_t keysym) {
+xcb_keycode_t *tfwm_get_keycodes(xcb_keysym_t keysym) {
   xcb_key_symbols_t *ks = xcb_key_symbols_alloc(gp_conn);
   xcb_keycode_t *keycode =
       (!(ks) ? NULL : xcb_key_symbols_get_keycode(ks, keysym));
@@ -57,7 +53,7 @@ static xcb_keycode_t *tfwm_get_keycodes(xcb_keysym_t keysym) {
   return keycode;
 }
 
-static xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode) {
+xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode) {
   xcb_key_symbols_t *ks = xcb_key_symbols_alloc(gp_conn);
   xcb_keysym_t keysym =
       (!(ks) ? 0 : xcb_key_symbols_get_keysym(ks, keycode, 0));
@@ -67,13 +63,13 @@ static xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode) {
 
 /* ===================== WINDOW FUNCTION ===================== */
 
-static void tfwm_exit(char **cmd) {
+void tfwm_exit(char **cmd) {
   if (gp_conn) {
     xcb_disconnect(gp_conn);
   }
 }
 
-static void tfwm_spawn(char **cmd) {
+void tfwm_spawn(char **cmd) {
   if (fork() == 0) {
     setsid();
     if (fork() != 0) {
@@ -85,7 +81,7 @@ static void tfwm_spawn(char **cmd) {
   wait(NULL);
 }
 
-static void tfwm_kill(char **cmd) {
+void tfwm_kill(char **cmd) {
   int wid = -1;
   for (int i = 0; i < workspaces[gp_cur_ws].win_len; i++) {
     if (workspaces[gp_cur_ws].win_list[i].window == gp_win) {
@@ -107,7 +103,7 @@ static void tfwm_kill(char **cmd) {
   workspaces[gp_cur_ws].win_len -= 1;
 }
 
-static void tfwm_focus_window(xcb_window_t win) {
+void tfwm_focus_window(xcb_window_t win) {
   if (win == 0) {
     return;
   }
@@ -119,7 +115,7 @@ static void tfwm_focus_window(xcb_window_t win) {
                       XCB_CURRENT_TIME);
 }
 
-static void tfwm_focus_color_window(xcb_window_t win, int focus) {
+void tfwm_focus_color_window(xcb_window_t win, int focus) {
   if (BORDER_WIDTH <= 0) {
     return;
   }
@@ -136,19 +132,19 @@ static void tfwm_focus_color_window(xcb_window_t win, int focus) {
   xcb_flush(gp_conn);
 }
 
-static void tfwm_map_window(xcb_window_t win) {
+void tfwm_map_window(xcb_window_t win) {
   xcb_map_window(gp_conn, win);
   xcb_flush(gp_conn);
 }
 
-static void tfwm_unmap_window(xcb_window_t win) {
+void tfwm_unmap_window(xcb_window_t win) {
   xcb_unmap_window(gp_conn, win);
   xcb_flush(gp_conn);
 }
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-static void tfwm_remap_workspace(void) {
+void tfwm_remap_workspace(void) {
   if (gp_cur_ws == gp_prev_ws) {
     return;
   }
@@ -162,7 +158,7 @@ static void tfwm_remap_workspace(void) {
   }
 }
 
-static void tfwm_goto_workspace(char **cmd) {
+void tfwm_goto_workspace(char **cmd) {
   gp_prev_ws = gp_cur_ws;
   for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
     char *ws = (char *)cmd[0];
@@ -174,7 +170,7 @@ static void tfwm_goto_workspace(char **cmd) {
   tfwm_remap_workspace();
 }
 
-static void tfwm_next_workspace(char **cmd) {
+void tfwm_next_workspace(char **cmd) {
   size_t w_len = (sizeof(workspaces) / sizeof(*workspaces));
   if ((gp_cur_ws + 1) == w_len) {
     gp_prev_ws = gp_cur_ws;
@@ -187,7 +183,7 @@ static void tfwm_next_workspace(char **cmd) {
   tfwm_remap_workspace();
 }
 
-static void tfwm_prev_workspace(char **cmd) {
+void tfwm_prev_workspace(char **cmd) {
   size_t w_len = (sizeof(workspaces) / sizeof(*workspaces));
   if ((gp_cur_ws - 1) < 0) {
     gp_prev_ws = gp_cur_ws;
@@ -200,7 +196,7 @@ static void tfwm_prev_workspace(char **cmd) {
   tfwm_remap_workspace();
 }
 
-static void tfwm_swap_prev_workspace(char **cmd) {
+void tfwm_swap_prev_workspace(char **cmd) {
   gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
   gp_cur_ws = gp_prev_ws ^ gp_cur_ws;
   gp_prev_ws = gp_prev_ws ^ gp_cur_ws;
@@ -208,19 +204,19 @@ static void tfwm_swap_prev_workspace(char **cmd) {
   tfwm_remap_workspace();
 }
 
-static void tfwm_workspace_use_tiling(char **cmd) {
+void tfwm_workspace_use_tiling(char **cmd) {
   workspaces[gp_cur_ws].default_layout = TILING;
 }
 
-static void tfwm_workspace_use_floating(char **cmd) {
+void tfwm_workspace_use_floating(char **cmd) {
   workspaces[gp_cur_ws].default_layout = FLOATING;
 }
 
-static void tfwm_workspace_use_window(char **cmd) {
+void tfwm_workspace_use_window(char **cmd) {
   workspaces[gp_cur_ws].default_layout = WINDOW;
 }
 
-static void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
+void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
   if (ws->win_list) {
     return;
   }
@@ -229,7 +225,7 @@ static void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
   ws->win_cap = 1;
 }
 
-static void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
+void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
   if (!ws->win_list) {
     return;
   }
@@ -244,14 +240,13 @@ static void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
   ws->win_cap += 1;
 }
 
-static void tfwm_workspace_window_append(tfwm_workspace_t *ws,
-                                         tfwm_window_t w) {
+void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w) {
   ws->win_list[ws->win_len++] = w;
 }
 
 /* ====================== EVENT HANDLER ====================== */
 
-static void tfwm_handle_keypress(xcb_generic_event_t *evt) {
+void tfwm_handle_keypress(xcb_generic_event_t *evt) {
   xcb_key_press_event_t *e = (xcb_key_press_event_t *)evt;
   xcb_keysym_t keysym = tfwm_get_keysym(e->detail);
   gp_win = e->child;
@@ -262,7 +257,7 @@ static void tfwm_handle_keypress(xcb_generic_event_t *evt) {
   }
 }
 
-static void tfwm_handle_map_request(xcb_generic_event_t *evt) {
+void tfwm_handle_map_request(xcb_generic_event_t *evt) {
   xcb_map_request_event_t *e = (xcb_map_request_event_t *)evt;
 
   tfwm_workspace_t *ws = &workspaces[gp_cur_ws];
@@ -293,17 +288,17 @@ static void tfwm_handle_map_request(xcb_generic_event_t *evt) {
   tfwm_focus_window(e->window);
 }
 
-static void tfwm_handle_focus_in(xcb_generic_event_t *evt) {
+void tfwm_handle_focus_in(xcb_generic_event_t *evt) {
   xcb_focus_in_event_t *e = (xcb_focus_in_event_t *)evt;
   tfwm_focus_color_window(e->event, 1);
 }
 
-static void tfwm_handle_focus_out(xcb_generic_event_t *evt) {
+void tfwm_handle_focus_out(xcb_generic_event_t *evt) {
   xcb_focus_out_event_t *e = (xcb_focus_out_event_t *)evt;
   tfwm_focus_color_window(e->event, 0);
 }
 
-static int tfwm_handle_event(void) {
+int tfwm_handle_event(void) {
   int ret = xcb_connection_has_error(gp_conn);
   if (ret != 0) {
     return ret;
@@ -324,136 +319,6 @@ static int tfwm_handle_event(void) {
   free(evt);
   xcb_flush(gp_conn);
   return ret;
-}
-
-/* ========================== DEBUG ========================== */
-
-static char *tfwm_debug_workspace_str(void) {
-  size_t n = 0;
-
-  /* Workspace Layout Display */
-  uint16_t layout = workspaces[gp_cur_ws].default_layout;
-  char *ld = malloc(0);
-  char *ldr;
-  switch (layout) {
-  case (TILING):
-    n += strlen(LAYOUT_TILING_DISPLAY);
-    ldr = realloc(ld, (strlen(LAYOUT_TILING_DISPLAY) + 1));
-    ld = ldr;
-    ld = LAYOUT_TILING_DISPLAY;
-    break;
-  case (FLOATING):
-    n += strlen(LAYOUT_FLOATING_DISPLAY);
-    ldr = realloc(ld, (strlen(LAYOUT_FLOATING_DISPLAY) + 1));
-    ld = ldr;
-    ld = LAYOUT_FLOATING_DISPLAY;
-    break;
-  case (WINDOW):
-    n += strlen(LAYOUT_WINDOW_DISPLAY);
-    ldr = realloc(ld, (strlen(LAYOUT_WINDOW_DISPLAY) + 1));
-    ld = ldr;
-    ld = LAYOUT_WINDOW_DISPLAY;
-    break;
-  }
-
-  if (strlen(ld) > 0) {
-    n += 1;
-  }
-
-  /* Workspace List */
-  size_t wsize = (sizeof(workspaces) / sizeof(*workspaces));
-
-  for (size_t i = 0; i < wsize; i++) {
-    n += strlen(workspaces[i].name);
-    if (i < (wsize - 1)) {
-      n += 3;
-    }
-  }
-  n += 1;
-
-  /* Combine String */
-  char *res = malloc(n);
-  res[0] = '\0';
-
-  if (strlen(ld) > 0) {
-    strcat(res, ld);
-    strcat(res, " ");
-  }
-
-  for (size_t i = 0; i < wsize; i++) {
-    if (i == gp_cur_ws) {
-      strcat(res, "[");
-      strcat(res, workspaces[i].name);
-      strcat(res, "]");
-    } else {
-      strcat(res, " ");
-      strcat(res, workspaces[i].name);
-      strcat(res, " ");
-    }
-
-    if (i < (wsize - 1)) {
-      strcat(res, " ");
-    }
-  }
-
-  return res;
-}
-
-static void tfwm_debug_hud(void) {
-  xcb_generic_error_t *err;
-
-  xcb_font_t f = xcb_generate_id(gp_conn);
-  xcb_void_cookie_t fc =
-      xcb_open_font_checked(gp_conn, f, strlen(BAR_FONT_NAME), BAR_FONT_NAME);
-  err = xcb_request_check(gp_conn, fc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_open_font_checked\n");
-    return;
-  }
-
-  xcb_gcontext_t gc = xcb_generate_id(gp_conn);
-  uint32_t vals[4];
-  vals[0] = BAR_FOREGROUND;
-  vals[1] = BAR_BACKGROUND;
-  vals[2] = f;
-  vals[3] = 0;
-  xcb_void_cookie_t gcc =
-      xcb_create_gc_checked(gp_conn, gc, gp_scrn->root,
-                            XCB_GC_FOREGROUND | XCB_GC_BACKGROUND |
-                                XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
-                            vals);
-  err = xcb_request_check(gp_conn, gcc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_create_gc_checked\n");
-    return;
-  }
-
-  fc = xcb_close_font_checked(gp_conn, f);
-  err = xcb_request_check(gp_conn, fc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_close_font_checked\n");
-    return;
-  }
-
-  char *label = tfwm_debug_workspace_str();
-
-  xcb_void_cookie_t tc =
-      xcb_image_text_8_checked(gp_conn, strlen(label), gp_scrn->root, gc, 0,
-                               gp_scrn->height_in_pixels, label);
-  err = xcb_request_check(gp_conn, tc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_image_text_8_checked\n");
-    return;
-  }
-
-  gcc = xcb_free_gc(gp_conn, gc);
-  err = xcb_request_check(gp_conn, gcc);
-  if (err) {
-    tfwm_util_write_error("ERROR: xcb_free_gc\n");
-    return;
-  }
-
-  xcb_flush(gp_conn);
 }
 
 /* ========================== SETUP ========================== */
@@ -510,15 +375,11 @@ int main(int argc, char *argv[]) {
     tfwm_init();
   }
 
-  gp_debug_on = 1;
-
   while (ret == 0) {
     ret = tfwm_handle_event();
 
-    if (gp_debug_on == 1) {
-      if (gp_scrn) {
-        tfwm_debug_hud();
-      }
+    if (gp_scrn) {
+      tfwm_bar(gp_conn, gp_scrn, gp_cur_ws);
     }
   }
 
