@@ -366,10 +366,10 @@ static char *tfwm_debug_workspace_str(void) {
   for (size_t i = 0; i < wsize; i++) {
     n += strlen(workspaces[i].name);
     if (i < (wsize - 1)) {
-      n += 1;
+      n += 3;
     }
   }
-  n += 3;
+  n += 1;
 
   /* Combine String */
   char *res = malloc(n);
@@ -386,7 +386,9 @@ static char *tfwm_debug_workspace_str(void) {
       strcat(res, workspaces[i].name);
       strcat(res, "]");
     } else {
+      strcat(res, " ");
       strcat(res, workspaces[i].name);
+      strcat(res, " ");
     }
 
     if (i < (wsize - 1)) {
