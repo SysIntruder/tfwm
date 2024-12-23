@@ -18,13 +18,14 @@ static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t f, char *t) {
 
   xcb_query_text_extents_cookie_t c =
       xcb_query_text_extents(conn, f, t_len, bt);
-  xcb_query_text_extents_reply_t *te = xcb_query_text_extents_reply(conn, c, 0);
-  if (!te) {
+  xcb_query_text_extents_reply_t *rep =
+      xcb_query_text_extents_reply(conn, c, 0);
+  if (!rep) {
     return 0;
   }
 
-  int width = te->overall_width;
-  free(te);
+  int width = rep->overall_width;
+  free(rep);
   return width;
 }
 
@@ -105,6 +106,7 @@ void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *scrn, int cur_ws) {
   xcb_image_text_8(conn, strlen(layout), scrn->root, inactive_gc, pos_x,
                    BAR_HEIGHT, layout);
   pos_x += tfwm_bar_text_width(conn, font, layout);
+  free(layout);
 
   char **ws_list = tfwm_bar_workspace_str_list(cur_ws);
   size_t ws_len = (sizeof(workspaces) / sizeof(*workspaces));
@@ -117,6 +119,7 @@ void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *scrn, int cur_ws) {
                        BAR_HEIGHT, ws_list[i]);
     }
     pos_x += tfwm_bar_text_width(conn, font, ws_list[i]);
+    free(ws_list[i]);
   }
   free(ws_list);
 

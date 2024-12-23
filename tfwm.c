@@ -221,8 +221,9 @@ void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
     return;
   }
 
-  ws->win_list = (tfwm_window_t *)malloc(1 * sizeof(tfwm_window_t));
-  ws->win_cap = 1;
+  ws->win_list =
+      (tfwm_window_t *)malloc(DEFAULT_WS_WIN_MALLOC * sizeof(tfwm_window_t));
+  ws->win_cap = DEFAULT_WS_WIN_MALLOC;
 }
 
 void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
@@ -231,13 +232,14 @@ void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
   }
 
   tfwm_window_t *nwin = (tfwm_window_t *)realloc(
-      ws->win_list, (ws->win_cap + 1) * sizeof(tfwm_window_t));
+      ws->win_list,
+      (ws->win_cap + DEFAULT_WS_WIN_REALLOC) * sizeof(tfwm_window_t));
   if (!nwin) {
     return;
   }
 
   ws->win_list = nwin;
-  ws->win_cap += 1;
+  ws->win_cap += DEFAULT_WS_WIN_REALLOC;
 }
 
 void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w) {

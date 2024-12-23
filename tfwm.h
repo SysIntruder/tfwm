@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <xcb/xproto.h>
 
+/* ======================== SYS CONF ========================= */
+
+#define DEFAULT_WS_WIN_MALLOC 5
+#define DEFAULT_WS_WIN_REALLOC 5
+
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
