@@ -1,46 +1,70 @@
+#include <stdlib.h>
 #include <string.h>
+#include <xcb/xproto.h>
 
 #include "bar.h"
 #include "config.h"
 
-static char *tfwm_bar_workspace_str(int cur_ws) {
-  size_t n = 0;
+static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t f, char *t) {
+  int i;
+  size_t t_len = strlen(t);
+  xcb_char2b_t *bt = malloc(t_len * sizeof(xcb_char2b_t));
+  for (i = 0; i < t_len; i++) {
+    bt[i].byte1 = 0;
+    bt[i].byte2 = t[i];
+  }
 
-  /* Workspace Layout Display */
+  xcb_query_text_extents_cookie_t c =
+      xcb_query_text_extents(conn, f, t_len, bt);
+  xcb_query_text_extents_reply_t *te = xcb_query_text_extents_reply(conn, c, 0);
+  if (!te) {
+    return 0;
+  }
+
+  int width = te->overall_width;
+  free(te);
+  return width;
+}
+
+static char *tfwm_bar_layout_str(int cur_ws) {
   uint16_t layout = workspaces[cur_ws].default_layout;
-  char *ld = malloc(0);
-  char *ldr;
+  char *res = malloc(2);
+  res[0] = '\0';
+  char *tmp;
+
+  strcat(res, " ");
+
   switch (layout) {
   case (TILING):
-    n += strlen(LAYOUT_TILING_DISPLAY);
-    ldr = realloc(ld, (strlen(LAYOUT_TILING_DISPLAY) + 1));
-    ld = ldr;
-    ld = LAYOUT_TILING_DISPLAY;
+    tmp = realloc(res, (strlen(LAYOUT_TILING_DISPLAY) + 1));
+    res = tmp;
+    strcat(res, LAYOUT_TILING_DISPLAY);
     break;
   case (FLOATING):
-    n += strlen(LAYOUT_FLOATING_DISPLAY);
-    ldr = realloc(ld, (strlen(LAYOUT_FLOATING_DISPLAY) + 1));
-    ld = ldr;
-    ld = LAYOUT_FLOATING_DISPLAY;
+    tmp = realloc(res, (strlen(LAYOUT_FLOATING_DISPLAY) + 1));
+    res = tmp;
+    strcat(res, LAYOUT_FLOATING_DISPLAY);
     break;
   case (WINDOW):
-    n += strlen(LAYOUT_WINDOW_DISPLAY);
-    ldr = realloc(ld, (strlen(LAYOUT_WINDOW_DISPLAY) + 1));
-    ld = ldr;
-    ld = LAYOUT_WINDOW_DISPLAY;
+    tmp = realloc(res, (strlen(LAYOUT_WINDOW_DISPLAY) + 1));
+    res = tmp;
+    strcat(res, LAYOUT_WINDOW_DISPLAY);
     break;
   }
 
-  if (strlen(ld) > 0) {
-    n += 1;
-  }
+  strcat(res, " ");
 
-  /* Workspace List */
-  size_t wsize = (sizeof(workspaces) / sizeof(*workspaces));
+  return res;
+}
 
-  for (size_t i = 0; i < wsize; i++) {
+static char *tfwm_bar_workspace_str(int cur_ws) {
+  size_t n = 2;
+
+  size_t w_len = (sizeof(workspaces) / sizeof(*workspaces));
+
+  for (size_t i = 0; i < w_len; i++) {
     n += strlen(workspaces[i].name);
-    if (i < (wsize - 1)) {
+    if (i < (w_len - 1)) {
       n += 3;
     }
   }
@@ -50,12 +74,8 @@ static char *tfwm_bar_workspace_str(int cur_ws) {
   char *res = malloc(n);
   res[0] = '\0';
 
-  if (strlen(ld) > 0) {
-    strcat(res, ld);
-    strcat(res, " ");
-  }
-
-  for (size_t i = 0; i < wsize; i++) {
+  strcat(res, " ");
+  for (size_t i = 0; i < w_len; i++) {
     if (i == cur_ws) {
       strcat(res, "[");
       strcat(res, workspaces[i].name);
@@ -66,10 +86,11 @@ static char *tfwm_bar_workspace_str(int cur_ws) {
       strcat(res, " ");
     }
 
-    if (i < (wsize - 1)) {
+    if (i < (w_len - 1)) {
       strcat(res, " ");
     }
   }
+  strcat(res, " ");
 
   return res;
 }
@@ -91,15 +112,17 @@ void tfwm_bar(xcb_connection_t *conn, xcb_screen_t *scrn, int cur_ws) {
                     XCB_GC_GRAPHICS_EXPOSURES,
                 vals);
 
-  char *label = tfwm_bar_workspace_str(cur_ws);
+  int pos_x = 0;
 
-  xcb_rectangle_t bar = {0, (scrn->height_in_pixels - BAR_HEIGHT),
-                         scrn->width_in_pixels, BAR_HEIGHT};
+  char *layout = tfwm_bar_layout_str(cur_ws);
+  xcb_image_text_8(conn, strlen(layout), scrn->root, gc, pos_x, BAR_POS_Y,
+                   layout);
+  pos_x += tfwm_bar_text_width(conn, f, layout);
 
-  xcb_poly_fill_rectangle(conn, scrn->root, gc, 1, &bar);
-
-  xcb_image_text_8(conn, strlen(label), scrn->root, gc, 0,
-                   scrn->height_in_pixels, label);
+  char *ws_list = tfwm_bar_workspace_str(cur_ws);
+  xcb_image_text_8(conn, strlen(ws_list), scrn->root, gc, pos_x, BAR_POS_Y,
+                   ws_list);
+  pos_x += tfwm_bar_text_width(conn, f, layout);
 
   xcb_close_font_checked(conn, f);
   xcb_free_gc(conn, gc);
