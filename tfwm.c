@@ -76,6 +76,10 @@ void tfwm_window_spawn(char **cmd) {
 }
 
 void tfwm_window_kill(char **cmd) {
+    if (g_window == g_screen->root) {
+        return;
+    }
+
     int ws_id = -1;
     for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
         if (workspaces[g_curr_ws].window_list[i].window == g_window) {
@@ -96,6 +100,16 @@ void tfwm_window_kill(char **cmd) {
         }
     }
     workspaces[g_curr_ws].window_len -= 1;
+
+    if (workspaces[g_curr_ws].window_len == 0) {
+        return;
+    } else if ((ws_id + 1) >= workspaces[g_curr_ws].window_len) {
+        tfwm_window_focus(workspaces[g_curr_ws]
+                              .window_list[workspaces[g_curr_ws].window_len - 1]
+                              .window);
+    } else if ((ws_id + 1) < workspaces[g_curr_ws].window_len) {
+        tfwm_window_focus(workspaces[g_curr_ws].window_list[ws_id].window);
+    }
 }
 
 void tfwm_window_focus(xcb_window_t window) {
@@ -108,6 +122,13 @@ void tfwm_window_focus(xcb_window_t window) {
 
     xcb_set_input_focus(g_conn, XCB_INPUT_FOCUS_POINTER_ROOT, window,
                         XCB_CURRENT_TIME);
+
+    for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
+        if (workspaces[g_curr_ws].window_list[i].window == window) {
+            g_window = window;
+            break;
+        }
+    }
 }
 
 void tfwm_window_focus_color(xcb_window_t window, int focus) {
@@ -169,8 +190,8 @@ void tfwm_workspace_remap(void) {
     for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
         tfwm_window_map(workspaces[g_curr_ws].window_list[i].window);
 
-        if (i == 0) {
-            g_window = workspaces[g_curr_ws].window_list[i].window;
+        if (i == (workspaces[g_curr_ws].window_len - 1)) {
+            tfwm_window_focus(workspaces[g_curr_ws].window_list[i].window);
         }
     }
 }
@@ -268,8 +289,8 @@ void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w) {
 
 void tfwm_handle_keypress(xcb_generic_event_t *event) {
     xcb_key_press_event_t *e = (xcb_key_press_event_t *)event;
-    xcb_keysym_t           keysym = tfwm_get_keysym(e->detail);
-    g_window = e->child;
+    xcb_keysym_t           keysym = tfwm_util_get_keysym(e->detail);
+
     for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); i++) {
         if ((keybinds[i].keysym == keysym) && (keybinds[i].mod == e->state)) {
             keybinds[i].func(keybinds[i].cmd);
@@ -288,6 +309,7 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
     }
     tfwm_window_t win = {(ws->default_layout == FLOATING ? 1 : 0), e->window};
     tfwm_workspace_window_append(ws, win);
+    g_window = e->window;
 
     tfwm_window_map(e->window);
     uint32_t vals[5];
@@ -406,7 +428,7 @@ static void tfwm_init(void) {
 
     xcb_ungrab_key(g_conn, XCB_GRAB_ANY, g_screen->root, XCB_MOD_MASK_ANY);
     for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); i++) {
-        xcb_keycode_t *keycode = tfwm_get_keycodes(keybinds[i].keysym);
+        xcb_keycode_t *keycode = tfwm_util_get_keycodes(keybinds[i].keysym);
         if (keycode != NULL) {
             xcb_grab_key(g_conn, 1, g_screen->root, keybinds[i].mod, *keycode,
                          XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
