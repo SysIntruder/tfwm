@@ -6,26 +6,26 @@
 
 /* ======================== SYS CONF ========================= */
 
-#define DEFAULT_WS_WIN_MALLOC 5
+#define DEFAULT_WS_WIN_MALLOC  5
 #define DEFAULT_WS_WIN_REALLOC 5
 
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
-    uint8_t is_floating;
+    uint8_t      is_floating;
     xcb_window_t window;
 } tfwm_window_t;
 
 typedef struct {
-    uint16_t default_layout;
-    char *name;
-    size_t win_len;
-    size_t win_cap;
+    uint16_t       default_layout;
+    char          *name;
+    size_t         win_len;
+    size_t         win_cap;
     tfwm_window_t *win_list;
 } tfwm_workspace_t;
 
 typedef struct {
-    uint16_t mod;
+    uint16_t     mod;
     xcb_keysym_t keysym;
     void (*func)(char **cmd);
     char **cmd;
@@ -39,17 +39,17 @@ typedef struct {
 /* ========================== ENUMS ========================== */
 
 enum tfwm_layouts {
-  TILING,
-  FLOATING,
-  WINDOW,
+    TILING,
+    FLOATING,
+    WINDOW,
 };
 
 /* ========================== UTILS ========================== */
 
-int tfwm_util_write_error(char *err);
-int tfwm_util_compare_str(char *str1, char *str2);
+int            tfwm_util_write_error(char *err);
+int            tfwm_util_compare_str(char *str1, char *str2);
 xcb_keycode_t *tfwm_get_keycode(xcb_keysym_t keysym);
-xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode);
+xcb_keysym_t   tfwm_get_keysym(xcb_keycode_t keycode);
 
 /* ===================== WINDOW FUNCTION ===================== */
 
@@ -90,25 +90,25 @@ void tfwm_handle_enter_notify(xcb_generic_event_t *evt);
 void tfwm_handle_destroy_notify(xcb_generic_event_t *evt);
 void tfwm_handle_button_press(xcb_generic_event_t *evt);
 void tfwm_handle_button_release(xcb_generic_event_t *evt);
-int tfwm_handle_event(void);
+int  tfwm_handle_event(void);
 
 /* ======================= VARIABLES ========================= */
 
 static tfwm_event_handler_t event_handlers[] = {
-    {XCB_KEY_PRESS, tfwm_handle_keypress},
-    {XCB_MAP_REQUEST, tfwm_handle_map_request},
-    {XCB_FOCUS_IN, tfwm_handle_focus_in},
-    {XCB_FOCUS_OUT, tfwm_handle_focus_out},
-    {XCB_MOTION_NOTIFY, tfwm_handle_motion_notify},
-    {XCB_ENTER_NOTIFY, tfwm_handle_enter_notify},
+    {XCB_KEY_PRESS,      tfwm_handle_keypress      },
+    {XCB_MAP_REQUEST,    tfwm_handle_map_request   },
+    {XCB_FOCUS_IN,       tfwm_handle_focus_in      },
+    {XCB_FOCUS_OUT,      tfwm_handle_focus_out     },
+    {XCB_MOTION_NOTIFY,  tfwm_handle_motion_notify },
+    {XCB_ENTER_NOTIFY,   tfwm_handle_enter_notify  },
     {XCB_DESTROY_NOTIFY, tfwm_handle_destroy_notify},
-    {XCB_BUTTON_PRESS, tfwm_handle_button_press},
+    {XCB_BUTTON_PRESS,   tfwm_handle_button_press  },
     {XCB_BUTTON_RELEASE, tfwm_handle_button_release},
-    {XCB_NONE, NULL},
+    {XCB_NONE,           NULL                      },
 };
 
 /* ========================== SETUP ========================== */
 
 static void tfwm_init(void);
 
-#endif // !TFWM_H
+#endif  // !TFWM_H

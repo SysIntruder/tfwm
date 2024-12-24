@@ -1,14 +1,14 @@
-AllowShortBlocksOnASingleLine: false
+BasedOnStyle: google
+AlignArrayOfStructures: Left
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignOperands: Align
+AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: None
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
-BasedOnStyle: google
-ColumnLimit: 0
-ForEachMacros: [ TAILQ_FOREACH, TAILQ_FOREACH_REVERSE, SLIST_FOREACH, CIRCLEQ_FOREACH, CIRCLEQ_FOREACH_REVERSE, NODES_FOREACH, NODES_FOREACH_REVERSE, FOREACH_NONINTERNAL]
+ColumnLimit: 85
 IndentWidth: 4
-InsertBraces: true
-PointerBindsToType: false
-SortIncludes: false
+SortIncludes: Never
 SpaceBeforeParens: ControlStatements
-TypenameMacros: [ SLIST_HEAD, SLIST_ENTRY, LIST_HEAD, LIST_ENTRY, SIMPLEQ_HEAD, SIMPLEQ_ENTRY, TAILQ_HEAD, TAILQ_ENTRY, CIRCLEQ_HEAD, CIRCLEQ_ENTRY ]
