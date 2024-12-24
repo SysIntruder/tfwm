@@ -46,7 +46,7 @@ int tfwm_util_compare_str(char *str1, char *str2) {
     return n;
 }
 
-xcb_keycode_t *tfwm_get_keycodes(xcb_keysym_t keysym) {
+xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym) {
     xcb_key_symbols_t *ks = xcb_key_symbols_alloc(g_conn);
     xcb_keycode_t     *keycode =
         (!(ks) ? NULL : xcb_key_symbols_get_keycode(ks, keysym));
@@ -54,7 +54,7 @@ xcb_keycode_t *tfwm_get_keycodes(xcb_keysym_t keysym) {
     return keycode;
 }
 
-xcb_keysym_t tfwm_get_keysym(xcb_keycode_t keycode) {
+xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode) {
     xcb_key_symbols_t *ks = xcb_key_symbols_alloc(g_conn);
     xcb_keysym_t keysym = (!(ks) ? 0 : xcb_key_symbols_get_keysym(ks, keycode, 0));
     xcb_key_symbols_free(ks);

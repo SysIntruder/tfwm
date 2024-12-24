@@ -48,8 +48,8 @@ enum tfwm_layouts {
 
 int            tfwm_util_write_error(char *err);
 int            tfwm_util_compare_str(char *str1, char *str2);
-xcb_keycode_t *tfwm_get_keycode(xcb_keysym_t keysym);
-xcb_keysym_t   tfwm_get_keysym(xcb_keycode_t keycode);
+xcb_keycode_t *tfwm_util_get_keycode(xcb_keysym_t keysym);
+xcb_keysym_t   tfwm_util_get_keysym(xcb_keycode_t keycode);
 
 /* ===================== WINDOW FUNCTION ===================== */
 
