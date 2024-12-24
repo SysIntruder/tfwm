@@ -53,7 +53,7 @@ static char *tfwm_bar_layout_str(int cur_ws) {
             memcpy(res, LAYOUT_WINDOW_DISPLAY, len);
             break;
     }
-    res[len + 1] = '\0';
+    res[len] = '\0';
 
     return res;
 }
@@ -95,13 +95,18 @@ void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *scrn, int cur_ws) {
                   XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT,
                   inactive_vals);
 
-    int pos_x = 0;
+    int   pos_x = 0;
+    char *sep = BAR_SEPARATOR;
 
     char *layout = tfwm_bar_layout_str(cur_ws);
     xcb_image_text_8(conn, strlen(layout), scrn->root, inactive_gc, pos_x,
                      BAR_HEIGHT, layout);
     pos_x += tfwm_bar_text_width(conn, font, layout);
     free(layout);
+
+    xcb_image_text_8(conn, strlen(sep), scrn->root, inactive_gc, pos_x, BAR_HEIGHT,
+                     sep);
+    pos_x += tfwm_bar_text_width(conn, font, sep);
 
     char **ws_list = tfwm_bar_workspace_str_list(cur_ws);
     size_t ws_len = (sizeof(workspaces) / sizeof(*workspaces));
