@@ -19,9 +19,9 @@ typedef struct {
 typedef struct {
     uint16_t       default_layout;
     char          *name;
-    size_t         win_len;
-    size_t         win_cap;
-    tfwm_window_t *win_list;
+    size_t         window_len;
+    size_t         window_cap;
+    tfwm_window_t *window_list;
 } tfwm_workspace_t;
 
 typedef struct {
@@ -53,24 +53,23 @@ xcb_keysym_t   tfwm_get_keysym(xcb_keycode_t keycode);
 
 /* ===================== WINDOW FUNCTION ===================== */
 
-void tfwm_exit(char **cmd);
-void tfwm_spawn(char **cmd);
-void tfwm_kill(char **cmd);
+void tfwm_window_spawn(char **cmd);
+void tfwm_window_kill(char **cmd);
 
-void tfwm_focus_window(xcb_window_t win);
-void tfwm_focus_color_window(xcb_window_t win, int focus);
-void tfwm_map_window(xcb_window_t win);
-void tfwm_unmap_window(xcb_window_t win);
-void tfwm_move_window(int x, int y);
-void tfwm_resize_window(int width, int height);
+void tfwm_window_focus(xcb_window_t window);
+void tfwm_window_focus_color(xcb_window_t window, int focus);
+void tfwm_window_map(xcb_window_t window);
+void tfwm_window_unmap(xcb_window_t window);
+void tfwm_window_move(int x, int y);
+void tfwm_window_resize(int width, int height);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-void tfwm_remap_workspace(void);
-void tfwm_goto_workspace(char **cmd);
-void tfwm_next_workspace(char **cmd);
-void tfwm_prev_workspace(char **cmd);
-void tfwm_swap_prev_workspace(char **cmd);
+void tfwm_workspace_remap(void);
+void tfwm_workspace_switch(char **cmd);
+void tfwm_workspace_next(char **cmd);
+void tfwm_workspace_prev(char **cmd);
+void tfwm_workspace_swap_prev(char **cmd);
 void tfwm_workspace_use_tiling(char **cmd);
 void tfwm_workspace_use_floating(char **cmd);
 void tfwm_workspace_use_window(char **cmd);
@@ -81,15 +80,15 @@ void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w);
 
 /* ====================== EVENT HANDLER ====================== */
 
-void tfwm_handle_keypress(xcb_generic_event_t *evt);
-void tfwm_handle_map_request(xcb_generic_event_t *evt);
-void tfwm_handle_focus_in(xcb_generic_event_t *evt);
-void tfwm_handle_focus_out(xcb_generic_event_t *evt);
-void tfwm_handle_motion_notify(xcb_generic_event_t *evt);
-void tfwm_handle_enter_notify(xcb_generic_event_t *evt);
-void tfwm_handle_destroy_notify(xcb_generic_event_t *evt);
-void tfwm_handle_button_press(xcb_generic_event_t *evt);
-void tfwm_handle_button_release(xcb_generic_event_t *evt);
+void tfwm_handle_keypress(xcb_generic_event_t *event);
+void tfwm_handle_map_request(xcb_generic_event_t *event);
+void tfwm_handle_focus_in(xcb_generic_event_t *event);
+void tfwm_handle_focus_out(xcb_generic_event_t *event);
+void tfwm_handle_motion_notify(xcb_generic_event_t *event);
+void tfwm_handle_enter_notify(xcb_generic_event_t *event);
+void tfwm_handle_destroy_notify(xcb_generic_event_t *event);
+void tfwm_handle_button_press(xcb_generic_event_t *event);
+void tfwm_handle_button_release(xcb_generic_event_t *event);
 int  tfwm_handle_event(void);
 
 /* ======================= VARIABLES ========================= */
@@ -110,5 +109,6 @@ static tfwm_event_handler_t event_handlers[] = {
 /* ========================== SETUP ========================== */
 
 static void tfwm_init(void);
+void        tfwm_exit(char **cmd);
 
 #endif  // !TFWM_H
