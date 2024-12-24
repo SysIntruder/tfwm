@@ -172,14 +172,19 @@ void tfwm_remap_workspace(void) {
 
     for (int i = 0; i < workspaces[g_cur_ws].win_len; i++) {
         tfwm_map_window(workspaces[g_cur_ws].win_list[i].window);
+
+        if (i == 0) {
+            g_win = workspaces[g_cur_ws].win_list[i].window;
+        }
     }
 }
 
 void tfwm_goto_workspace(char **cmd) {
-    g_prev_ws = g_cur_ws;
-    for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); ++i) {
+    for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); i++) {
         char *ws = (char *)cmd[0];
-        if (tfwm_util_compare_str(ws, workspaces[i].name) == 0) {
+        if ((tfwm_util_compare_str(ws, workspaces[i].name) == 0) &&
+            (i != g_cur_ws)) {
+            g_prev_ws = g_cur_ws;
             g_cur_ws = i;
         }
     }
@@ -269,7 +274,7 @@ void tfwm_handle_keypress(xcb_generic_event_t *evt) {
     xcb_key_press_event_t *e = (xcb_key_press_event_t *)evt;
     xcb_keysym_t           keysym = tfwm_get_keysym(e->detail);
     g_win = e->child;
-    for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); ++i) {
+    for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); i++) {
         if ((keybinds[i].keysym == keysym) && (keybinds[i].mod == e->state)) {
             keybinds[i].func(keybinds[i].cmd);
         }
@@ -404,7 +409,7 @@ static void tfwm_init(void) {
                                          g_vals);
 
     xcb_ungrab_key(g_conn, XCB_GRAB_ANY, g_scrn->root, XCB_MOD_MASK_ANY);
-    for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); ++i) {
+    for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); i++) {
         xcb_keycode_t *keycode = tfwm_get_keycodes(keybinds[i].keysym);
         if (keycode != NULL) {
             xcb_grab_key(g_conn, 1, g_scrn->root, keybinds[i].mod, *keycode,
