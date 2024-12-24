@@ -9,6 +9,9 @@
 #define MOD_SHIFT XCB_MOD_MASK_SHIFT
 #define MOD_CTRL XCB_MOD_MASK_SHIFT
 
+#define BUTTON_LEFT 1
+#define BUTTON_RIGHT 3
+
 /* ========================== WINDOW ========================= */
 
 #define WINDOW_WIDTH 600

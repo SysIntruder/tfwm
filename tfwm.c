@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
+#include <xcb/xproto.h>
 
 #include "bar.h"
 #include "config.h"
@@ -140,6 +141,25 @@ void tfwm_map_window(xcb_window_t win) {
 void tfwm_unmap_window(xcb_window_t win) {
   xcb_unmap_window(gp_conn, win);
   xcb_flush(gp_conn);
+}
+
+void tfwm_move_window(int x, int y) {
+  gp_vals[0] = x;
+  gp_vals[1] = y;
+  xcb_configure_window(gp_conn, gp_win,
+                       XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, gp_vals);
+}
+
+void tfwm_resize_window(int width, int height) {
+  if ((width < MIN_WINDOW_WIDTH) || (height < MIN_WINDOW_HEIGHT)) {
+    return;
+  }
+
+  gp_vals[0] = width;
+  gp_vals[1] = height;
+  xcb_configure_window(gp_conn, gp_win,
+                       XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
+                       gp_vals);
 }
 
 /* =================== WORKSPACE FUNCTION ==================== */
@@ -300,6 +320,62 @@ void tfwm_handle_focus_out(xcb_generic_event_t *evt) {
   tfwm_focus_color_window(e->event, 0);
 }
 
+void tfwm_handle_motion_notify(xcb_generic_event_t *evt) {
+  if (gp_win == 0) {
+    return;
+  }
+
+  xcb_query_pointer_reply_t *pointer = xcb_query_pointer_reply(
+      gp_conn, xcb_query_pointer(gp_conn, gp_scrn->root), 0);
+  xcb_get_geometry_reply_t *geo =
+      xcb_get_geometry_reply(gp_conn, xcb_get_geometry(gp_conn, gp_win), 0);
+
+  if (gp_vals[2] == (uint32_t)(BUTTON_LEFT)) {
+    int x = pointer->root_x;
+    int y = pointer->root_y;
+    tfwm_move_window(x, y);
+  } else if (gp_vals[2] == (uint32_t)(BUTTON_RIGHT)) {
+    if ((pointer->root_x <= geo->x) || (pointer->root_y <= geo->y)) {
+      return;
+    }
+
+    int width = pointer->root_x - geo->x - BORDER_WIDTH;
+    int height = pointer->root_y - geo->y - BORDER_WIDTH;
+    tfwm_resize_window(width, height);
+  }
+}
+
+void tfwm_handle_enter_notify(xcb_generic_event_t *evt) {
+  xcb_enter_notify_event_t *e = (xcb_enter_notify_event_t *)evt;
+  tfwm_focus_window(e->event);
+}
+
+void tfwm_handle_destroy_notify(xcb_generic_event_t *evt) {
+  xcb_destroy_notify_event_t *e = (xcb_destroy_notify_event_t *)evt;
+  xcb_kill_client(gp_conn, e->window);
+}
+
+void tfwm_handle_button_press(xcb_generic_event_t *evt) {
+  xcb_button_press_event_t *e = (xcb_button_press_event_t *)evt;
+  gp_win = e->child;
+  gp_vals[0] = XCB_STACK_MODE_ABOVE;
+  xcb_configure_window(gp_conn, gp_win, XCB_CONFIG_WINDOW_STACK_MODE, gp_vals);
+
+  gp_vals[2] =
+      ((e->detail == BUTTON_LEFT) ? BUTTON_LEFT
+                                  : ((gp_win != 0) ? BUTTON_RIGHT : 0));
+  xcb_grab_pointer(gp_conn, 0, gp_scrn->root,
+                   XCB_EVENT_MASK_BUTTON_RELEASE |
+                       XCB_EVENT_MASK_BUTTON_MOTION |
+                       XCB_EVENT_MASK_POINTER_MOTION_HINT,
+                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, gp_scrn->root,
+                   XCB_NONE, XCB_CURRENT_TIME);
+}
+
+void tfwm_handle_button_release(xcb_generic_event_t *evt) {
+  xcb_ungrab_pointer(gp_conn, XCB_CURRENT_TIME);
+}
+
 int tfwm_handle_event(void) {
   int ret = xcb_connection_has_error(gp_conn);
   if (ret != 0) {
@@ -345,11 +421,11 @@ static void tfwm_init(void) {
   xcb_grab_button(gp_conn, 0, gp_scrn->root,
                   XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, gp_scrn->root,
-                  XCB_NONE, 1, MOD_KEY);
+                  XCB_NONE, BUTTON_LEFT, MOD_KEY);
   xcb_grab_button(gp_conn, 0, gp_scrn->root,
                   XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, gp_scrn->root,
-                  XCB_NONE, 3, MOD_KEY);
+                  XCB_NONE, BUTTON_RIGHT, MOD_KEY);
   xcb_flush(gp_conn);
 }
 

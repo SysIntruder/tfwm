@@ -61,6 +61,8 @@ void tfwm_focus_window(xcb_window_t win);
 void tfwm_focus_color_window(xcb_window_t win, int focus);
 void tfwm_map_window(xcb_window_t win);
 void tfwm_unmap_window(xcb_window_t win);
+void tfwm_move_window(int x, int y);
+void tfwm_resize_window(int width, int height);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
@@ -83,6 +85,11 @@ void tfwm_handle_keypress(xcb_generic_event_t *evt);
 void tfwm_handle_map_request(xcb_generic_event_t *evt);
 void tfwm_handle_focus_in(xcb_generic_event_t *evt);
 void tfwm_handle_focus_out(xcb_generic_event_t *evt);
+void tfwm_handle_motion_notify(xcb_generic_event_t *evt);
+void tfwm_handle_enter_notify(xcb_generic_event_t *evt);
+void tfwm_handle_destroy_notify(xcb_generic_event_t *evt);
+void tfwm_handle_button_press(xcb_generic_event_t *evt);
+void tfwm_handle_button_release(xcb_generic_event_t *evt);
 int tfwm_handle_event(void);
 
 /* ======================= VARIABLES ========================= */
@@ -92,6 +99,11 @@ static tfwm_event_handler_t event_handlers[] = {
     {XCB_MAP_REQUEST, tfwm_handle_map_request},
     {XCB_FOCUS_IN, tfwm_handle_focus_in},
     {XCB_FOCUS_OUT, tfwm_handle_focus_out},
+    {XCB_MOTION_NOTIFY, tfwm_handle_motion_notify},
+    {XCB_ENTER_NOTIFY, tfwm_handle_enter_notify},
+    {XCB_DESTROY_NOTIFY, tfwm_handle_destroy_notify},
+    {XCB_BUTTON_PRESS, tfwm_handle_button_press},
+    {XCB_BUTTON_RELEASE, tfwm_handle_button_release},
     {XCB_NONE, NULL},
 };
 
