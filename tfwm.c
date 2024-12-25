@@ -76,25 +76,21 @@ void tfwm_window_spawn(char **cmd) {
 }
 
 void tfwm_window_kill(char **cmd) {
-    if (g_window == g_screen->root) {
-        return;
-    }
-
-    int ws_id = -1;
+    int window_id = -1;
     for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
         if (workspaces[g_curr_ws].window_list[i].window == g_window) {
-            ws_id = i;
+            window_id = i;
             break;
         }
     }
-    if (ws_id < 0) {
+    if (window_id < 0) {
         return;
     }
 
     xcb_kill_client(g_conn, g_window);
 
-    if (ws_id < workspaces[g_curr_ws].window_len - 1) {
-        for (int i = ws_id + 1; i < workspaces[g_curr_ws].window_len; i++) {
+    if (window_id < workspaces[g_curr_ws].window_len - 1) {
+        for (int i = window_id + 1; i < workspaces[g_curr_ws].window_len; i++) {
             workspaces[g_curr_ws].window_list[i - 1] =
                 workspaces[g_curr_ws].window_list[i];
         }
@@ -103,12 +99,52 @@ void tfwm_window_kill(char **cmd) {
 
     if (workspaces[g_curr_ws].window_len == 0) {
         return;
-    } else if ((ws_id + 1) >= workspaces[g_curr_ws].window_len) {
+    } else if ((window_id + 1) >= workspaces[g_curr_ws].window_len) {
         tfwm_window_focus(workspaces[g_curr_ws]
                               .window_list[workspaces[g_curr_ws].window_len - 1]
                               .window);
-    } else if ((ws_id + 1) < workspaces[g_curr_ws].window_len) {
-        tfwm_window_focus(workspaces[g_curr_ws].window_list[ws_id].window);
+    } else if ((window_id + 1) < workspaces[g_curr_ws].window_len) {
+        tfwm_window_focus(workspaces[g_curr_ws].window_list[window_id].window);
+    }
+}
+
+void tfwm_window_next(char **cmd) {
+    int window_id = -1;
+    for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
+        if (workspaces[g_curr_ws].window_list[i].window == g_window) {
+            window_id = i;
+            break;
+        }
+    }
+    if (window_id < 0) {
+        return;
+    }
+
+    if ((window_id + 1) == workspaces[g_curr_ws].window_len) {
+        tfwm_window_focus(workspaces[g_curr_ws].window_list[0].window);
+    } else {
+        tfwm_window_focus(workspaces[g_curr_ws].window_list[window_id + 1].window);
+    }
+}
+
+void tfwm_window_prev(char **cmd) {
+    int window_id = -1;
+    for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
+        if (workspaces[g_curr_ws].window_list[i].window == g_window) {
+            window_id = i;
+            break;
+        }
+    }
+    if (window_id < 0) {
+        return;
+    }
+
+    if ((window_id - 1) < 0) {
+        tfwm_window_focus(workspaces[g_curr_ws]
+                              .window_list[workspaces[g_curr_ws].window_len - 1]
+                              .window);
+    } else {
+        tfwm_window_focus(workspaces[g_curr_ws].window_list[window_id - 1].window);
     }
 }
 
@@ -178,24 +214,6 @@ void tfwm_window_resize(int width, int height) {
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-void tfwm_workspace_remap(void) {
-    if (g_curr_ws == g_prev_ws) {
-        return;
-    }
-
-    for (int i = 0; i < workspaces[g_prev_ws].window_len; i++) {
-        tfwm_window_unmap(workspaces[g_prev_ws].window_list[i].window);
-    }
-
-    for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
-        tfwm_window_map(workspaces[g_curr_ws].window_list[i].window);
-
-        if (i == (workspaces[g_curr_ws].window_len - 1)) {
-            tfwm_window_focus(workspaces[g_curr_ws].window_list[i].window);
-        }
-    }
-}
-
 void tfwm_workspace_switch(char **cmd) {
     for (int i = 0; i < sizeof(workspaces) / sizeof(*workspaces); i++) {
         char *ws = (char *)cmd[0];
@@ -253,6 +271,24 @@ void tfwm_workspace_use_floating(char **cmd) {
 
 void tfwm_workspace_use_window(char **cmd) {
     workspaces[g_curr_ws].default_layout = WINDOW;
+}
+
+void tfwm_workspace_remap(void) {
+    if (g_curr_ws == g_prev_ws) {
+        return;
+    }
+
+    for (int i = 0; i < workspaces[g_prev_ws].window_len; i++) {
+        tfwm_window_unmap(workspaces[g_prev_ws].window_list[i].window);
+    }
+
+    for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
+        tfwm_window_map(workspaces[g_curr_ws].window_list[i].window);
+
+        if (i == (workspaces[g_curr_ws].window_len - 1)) {
+            tfwm_window_focus(workspaces[g_curr_ws].window_list[i].window);
+        }
+    }
 }
 
 void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {

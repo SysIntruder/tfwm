@@ -73,6 +73,10 @@ static tfwm_keybind_t keybinds[] = {
     {MOD_KEY,             0x0071, tfwm_window_kill,            NULL      }, /* 0x0071 = q */
     {MOD_KEY,             0xff0d, tfwm_window_spawn,           cmd_term  }, /* 0xff0d = Return */
 
+    /* Window Navigation*/
+    {MOD_KEY,             0x006c, tfwm_window_next,            NULL      }, /* 0x006c = l */
+    {MOD_KEY,             0x0068, tfwm_window_prev,            NULL      }, /* 0x0068 = h */
+
     /* Workspace Navigation */
     {MOD_KEY,             0x0060, tfwm_workspace_swap_prev,    NULL      }, /* 0x0060 = grave */
     {MOD_KEY,             0x005d, tfwm_workspace_next,         NULL      }, /* 0x005d = bracketright */

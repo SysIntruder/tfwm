@@ -55,6 +55,8 @@ xcb_keysym_t   tfwm_util_get_keysym(xcb_keycode_t keycode);
 
 void tfwm_window_spawn(char **cmd);
 void tfwm_window_kill(char **cmd);
+void tfwm_window_next(char **cmd);
+void tfwm_window_prev(char **cmd);
 
 void tfwm_window_focus(xcb_window_t window);
 void tfwm_window_focus_color(xcb_window_t window, int focus);
@@ -65,7 +67,6 @@ void tfwm_window_resize(int width, int height);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-void tfwm_workspace_remap(void);
 void tfwm_workspace_switch(char **cmd);
 void tfwm_workspace_next(char **cmd);
 void tfwm_workspace_prev(char **cmd);
@@ -73,6 +74,8 @@ void tfwm_workspace_swap_prev(char **cmd);
 void tfwm_workspace_use_tiling(char **cmd);
 void tfwm_workspace_use_floating(char **cmd);
 void tfwm_workspace_use_window(char **cmd);
+
+void tfwm_workspace_remap(void);
 
 void tfwm_workspace_window_malloc(tfwm_workspace_t *ws);
 void tfwm_workspace_window_realloc(tfwm_workspace_t *ws);
