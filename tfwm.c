@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <xcb/xcb.h>
@@ -12,6 +13,7 @@
 static xcb_connection_t *g_conn;
 static xcb_screen_t     *g_screen;
 static xcb_window_t      g_window;
+static xcb_window_t      g_bar;
 
 static uint32_t g_vals[3];
 static int      g_curr_ws;
@@ -65,6 +67,32 @@ tfwm_workspace_t *tfwm_util_get_workspaces(void) {
     return workspaces;
 }
 
+char *tfwm_util_get_wm_class(xcb_window_t window) {
+    xcb_intern_atom_reply_t *rep = xcb_intern_atom_reply(
+        g_conn, xcb_intern_atom(g_conn, 0, strlen("WM_CLASS"), "WM_CLASS"), NULL);
+    if (!rep) {
+        return NULL;
+    }
+    xcb_atom_t atom = rep->atom;
+    free(rep);
+
+    xcb_get_property_reply_t *prep = xcb_get_property_reply(
+        g_conn, xcb_get_property(g_conn, 0, window, atom, XCB_ATOM_STRING, 0, 250),
+        NULL);
+    if (!prep) {
+        return NULL;
+    }
+    if (xcb_get_property_value_length(prep) == 0) {
+        free(prep);
+        return NULL;
+    }
+
+    char *wm_class = (char *)xcb_get_property_value(prep);
+    wm_class = wm_class + strlen(wm_class) + 1;
+    free(prep);
+    return wm_class;
+}
+
 size_t tfwm_util_get_workspaces_len(void) {
     return (sizeof(workspaces) / sizeof(*workspaces));
 }
@@ -76,8 +104,18 @@ tfwm_workspace_t *tfwm_util_get_workspace(size_t ws_id) {
 tfwm_workspace_t *tfwm_util_get_current_workspace(void) {
     return &workspaces[g_curr_ws];
 }
+
 int tfwm_util_check_current_workspace(size_t ws_id) {
     return ws_id == g_curr_ws;
+}
+
+int tfwm_util_check_current_window(xcb_window_t window) {
+    return g_window == window;
+}
+
+void tfwm_util_redraw_bar(void) {
+    xcb_clear_area(g_conn, 1, g_bar, 0, 0, 0, 0);
+    xcb_flush(g_conn);
 }
 
 /* ===================== WINDOW FUNCTION ===================== */
@@ -92,6 +130,8 @@ void tfwm_window_spawn(char **cmd) {
         _exit(0);
     }
     wait(NULL);
+
+    tfwm_util_redraw_bar();
 }
 
 void tfwm_window_kill(char **cmd) {
@@ -99,6 +139,7 @@ void tfwm_window_kill(char **cmd) {
     for (int i = 0; i < workspaces[g_curr_ws].window_len; i++) {
         if (workspaces[g_curr_ws].window_list[i].window == g_window) {
             window_id = i;
+            workspaces[g_curr_ws].window_list[i].is_killed = 1;
             break;
         }
     }
@@ -115,6 +156,7 @@ void tfwm_window_kill(char **cmd) {
         }
     }
     workspaces[g_curr_ws].window_len -= 1;
+    tfwm_util_redraw_bar();
 
     if (workspaces[g_curr_ws].window_len == 0) {
         return;
@@ -362,7 +404,7 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
     } else if (ws->window_cap == ws->window_len) {
         tfwm_workspace_window_realloc(ws);
     }
-    tfwm_window_t win = {(ws->default_layout == FLOATING ? 1 : 0), e->window};
+    tfwm_window_t win = {(ws->default_layout == FLOATING ? 1 : 0), 0, e->window};
     tfwm_workspace_window_append(ws, win);
     g_window = e->window;
 
@@ -500,6 +542,22 @@ static void tfwm_init(void) {
                     XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, g_screen->root,
                     XCB_NONE, BUTTON_RIGHT, MOD_KEY);
     xcb_flush(g_conn);
+
+    g_bar = xcb_generate_id(g_conn);
+    uint32_t bar_vals[3];
+    bar_vals[0] = 1;
+    bar_vals[1] = BAR_BACKGROUND;
+    bar_vals[2] = XCB_EVENT_MASK_EXPOSURE;
+    xcb_create_window(
+        g_conn, XCB_COPY_FROM_PARENT, g_bar, g_screen->root, 0, 0,
+        g_screen->width_in_pixels, BAR_HEIGHT + 2, BORDER_WIDTH,
+        XCB_WINDOW_CLASS_INPUT_OUTPUT, g_screen->root_visual,
+        XCB_CW_OVERRIDE_REDIRECT | XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, bar_vals);
+    uint32_t bar_cfg_vals[1];
+    bar_vals[0] = XCB_STACK_MODE_ABOVE;
+    xcb_configure_window(g_conn, g_bar, XCB_CONFIG_WINDOW_STACK_MODE, bar_cfg_vals);
+    xcb_map_window(g_conn, g_bar);
+    xcb_flush(g_conn);
 }
 
 void tfwm_exit(char **cmd) {
@@ -536,7 +594,7 @@ int main(int argc, char *argv[]) {
         ret = tfwm_handle_event();
 
         if (g_screen) {
-            tfwm_left_bar(g_conn, g_screen);
+            tfwm_left_bar(g_conn, g_screen, g_bar);
         }
     }
 

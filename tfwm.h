@@ -13,6 +13,7 @@
 
 typedef struct {
     uint8_t      is_floating;
+    uint8_t      is_killed;
     xcb_window_t window;
 } tfwm_window_t;
 
@@ -50,12 +51,15 @@ int            tfwm_util_write_error(char *err);
 int            tfwm_util_compare_str(char *str1, char *str2);
 xcb_keycode_t *tfwm_util_get_keycode(xcb_keysym_t keysym);
 xcb_keysym_t   tfwm_util_get_keysym(xcb_keycode_t keycode);
+char          *tfwm_util_get_wm_class(xcb_window_t window);
 
 tfwm_workspace_t *tfwm_util_get_workspaces(void);
 size_t            tfwm_util_get_workspaces_len(void);
 tfwm_workspace_t *tfwm_util_get_workspace(size_t ws_id);
 tfwm_workspace_t *tfwm_util_get_current_workspace(void);
 int               tfwm_util_check_current_workspace(size_t ws_id);
+int               tfwm_util_check_current_window(xcb_window_t window);
+void              tfwm_util_redraw_bar(void);
 
 /* ===================== WINDOW FUNCTION ===================== */
 
