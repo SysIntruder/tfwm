@@ -6,6 +6,7 @@
 
 #include "bar.h"
 #include "config.h"
+#include "tfwm.h"
 
 static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t font, char *text) {
     size_t        txt_len = strlen(text);
@@ -27,8 +28,8 @@ static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t font, char *te
     return width;
 }
 
-static char *tfwm_bar_layout_str(int curr_ws) {
-    uint16_t layout = workspaces[curr_ws].default_layout;
+static char *tfwm_bar_layout_str(tfwm_workspace_t *ws) {
+    uint16_t layout = ws->default_layout;
     char    *res = malloc(0);
     char    *tmp;
     size_t   len;
@@ -58,15 +59,14 @@ static char *tfwm_bar_layout_str(int curr_ws) {
     return res;
 }
 
-static char **tfwm_bar_workspace_str_list(void) {
-    size_t ws_len = (sizeof(workspaces) / sizeof(*workspaces));
+static char **tfwm_bar_workspace_str_list(tfwm_workspace_t *ws, size_t ws_len) {
     char **res = malloc(ws_len * sizeof(char *));
 
     for (size_t i = 0; i < ws_len; i++) {
-        size_t len = strlen(workspaces[i].name);
+        size_t len = strlen(ws[i].name);
         res[i] = malloc(len + 3);
         res[i][0] = ' ';
-        memcpy(res[i] + 1, workspaces[i].name, len);
+        memcpy(res[i] + 1, ws[i].name, len);
         res[i][len + 1] = ' ';
         res[i][len + 2] = '\0';
     }
@@ -74,7 +74,7 @@ static char **tfwm_bar_workspace_str_list(void) {
     return res;
 }
 
-void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen, int curr_ws) {
+void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen) {
     xcb_font_t font = xcb_generate_id(conn);
     xcb_open_font(conn, font, strlen(BAR_FONT_NAME), BAR_FONT_NAME);
 
@@ -95,10 +95,13 @@ void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen, int curr_ws) {
                   XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT,
                   inactive_vals);
 
-    int   pos_x = 0;
-    char *sep = BAR_SEPARATOR;
+    int               pos_x = 0;
+    char             *sep = BAR_SEPARATOR;
+    size_t            ws_len = tfwm_util_get_workspaces_len();
+    tfwm_workspace_t *ws_list = tfwm_util_get_workspaces();
+    tfwm_workspace_t *ws = tfwm_util_get_current_workspace();
 
-    char *layout = tfwm_bar_layout_str(curr_ws);
+    char *layout = tfwm_bar_layout_str(ws);
     xcb_image_text_8(conn, strlen(layout), screen->root, inactive_gc, pos_x,
                      BAR_HEIGHT, layout);
     pos_x += tfwm_bar_text_width(conn, font, layout);
@@ -108,20 +111,19 @@ void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen, int curr_ws) {
                      sep);
     pos_x += tfwm_bar_text_width(conn, font, sep);
 
-    char **ws_list = tfwm_bar_workspace_str_list();
-    size_t ws_len = (sizeof(workspaces) / sizeof(*workspaces));
+    char **ws_names = tfwm_bar_workspace_str_list(ws_list, ws_len);
     for (size_t i = 0; i < ws_len; i++) {
-        if (curr_ws == i) {
-            xcb_image_text_8(conn, strlen(ws_list[i]), screen->root, active_gc,
-                             pos_x, BAR_HEIGHT, ws_list[i]);
+        if (tfwm_util_check_current_workspace(i)) {
+            xcb_image_text_8(conn, strlen(ws_names[i]), screen->root, active_gc,
+                             pos_x, BAR_HEIGHT, ws_names[i]);
         } else {
-            xcb_image_text_8(conn, strlen(ws_list[i]), screen->root, inactive_gc,
-                             pos_x, BAR_HEIGHT, ws_list[i]);
+            xcb_image_text_8(conn, strlen(ws_names[i]), screen->root, inactive_gc,
+                             pos_x, BAR_HEIGHT, ws_names[i]);
         }
-        pos_x += tfwm_bar_text_width(conn, font, ws_list[i]);
-        free(ws_list[i]);
+        pos_x += tfwm_bar_text_width(conn, font, ws_names[i]);
+        free(ws_names[i]);
     }
-    free(ws_list);
+    free(ws_names);
 
     xcb_close_font(conn, font);
     xcb_free_gc(conn, active_gc);

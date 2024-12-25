@@ -61,6 +61,25 @@ xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode) {
     return keysym;
 }
 
+tfwm_workspace_t *tfwm_util_get_workspaces(void) {
+    return workspaces;
+}
+
+size_t tfwm_util_get_workspaces_len(void) {
+    return (sizeof(workspaces) / sizeof(*workspaces));
+}
+
+tfwm_workspace_t *tfwm_util_get_workspace(size_t ws_id) {
+    return &workspaces[ws_id];
+}
+
+tfwm_workspace_t *tfwm_util_get_current_workspace(void) {
+    return &workspaces[g_curr_ws];
+}
+int tfwm_util_check_current_workspace(size_t ws_id) {
+    return ws_id == g_curr_ws;
+}
+
 /* ===================== WINDOW FUNCTION ===================== */
 
 void tfwm_window_spawn(char **cmd) {
@@ -517,7 +536,7 @@ int main(int argc, char *argv[]) {
         ret = tfwm_handle_event();
 
         if (g_screen) {
-            tfwm_left_bar(g_conn, g_screen, g_curr_ws);
+            tfwm_left_bar(g_conn, g_screen);
         }
     }
 

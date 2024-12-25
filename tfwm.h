@@ -51,6 +51,12 @@ int            tfwm_util_compare_str(char *str1, char *str2);
 xcb_keycode_t *tfwm_util_get_keycode(xcb_keysym_t keysym);
 xcb_keysym_t   tfwm_util_get_keysym(xcb_keycode_t keycode);
 
+tfwm_workspace_t *tfwm_util_get_workspaces(void);
+size_t            tfwm_util_get_workspaces_len(void);
+tfwm_workspace_t *tfwm_util_get_workspace(size_t ws_id);
+tfwm_workspace_t *tfwm_util_get_current_workspace(void);
+int               tfwm_util_check_current_workspace(size_t ws_id);
+
 /* ===================== WINDOW FUNCTION ===================== */
 
 void tfwm_window_spawn(char **cmd);
