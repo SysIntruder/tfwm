@@ -8,6 +8,9 @@
 #include "config.h"
 #include "tfwm.h"
 
+static int pos_x_left;
+static int pos_x_right;
+
 static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t font, char *text) {
     size_t        txt_len = strlen(text);
     xcb_char2b_t *bt = malloc(txt_len * sizeof(xcb_char2b_t));
@@ -26,6 +29,25 @@ static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t font, char *te
     int width = rep->overall_width;
     free(rep);
     return width;
+}
+
+static void tfwm_bar_pad_text(char *text, char *target, int count) {
+    size_t n = strlen(text);
+    size_t i = 0;
+    if (n >= count) {
+        target = text;
+    }
+
+    while (i < n) {
+        target[i] = text[i];
+        i++;
+    }
+
+    while (i < count) {
+        target[i++] = ' ';
+    }
+
+    target[count] = '\0';
 }
 
 static char *tfwm_bar_layout_str(tfwm_workspace_t *ws) {
@@ -97,8 +119,95 @@ static char **tfwm_bar_window_str_list(tfwm_workspace_t *ws) {
     return res;
 }
 
-void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen,
-                   xcb_window_t window) {
+void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen, xcb_window_t window,
+                   xcb_font_t font, xcb_gcontext_t active_gc,
+                   xcb_gcontext_t inactive_gc) {
+    char             *sep = BAR_SEPARATOR;
+    int               sep_width = tfwm_bar_text_width(conn, font, sep);
+    size_t            ws_len = tfwm_util_get_workspaces_len();
+    tfwm_workspace_t *ws_list = tfwm_util_get_workspaces();
+    tfwm_workspace_t *ws = tfwm_util_get_current_workspace();
+
+    char *layout = tfwm_bar_layout_str(ws);
+    xcb_image_text_8(conn, strlen(layout), window, inactive_gc, pos_x_left,
+                     BAR_HEIGHT, layout);
+    pos_x_left += tfwm_bar_text_width(conn, font, layout);
+    free(layout);
+
+    xcb_image_text_8(conn, strlen(sep), window, inactive_gc, pos_x_left, BAR_HEIGHT,
+                     sep);
+    pos_x_left += sep_width;
+
+    char **ws_names = tfwm_bar_workspace_str_list(ws_list, ws_len);
+    for (size_t i = 0; i < ws_len; i++) {
+        if (tfwm_util_check_current_workspace(i)) {
+            xcb_image_text_8(conn, strlen(ws_names[i]), window, active_gc,
+                             pos_x_left, BAR_HEIGHT, ws_names[i]);
+        } else {
+            xcb_image_text_8(conn, strlen(ws_names[i]), window, inactive_gc,
+                             pos_x_left, BAR_HEIGHT, ws_names[i]);
+        }
+        pos_x_left += tfwm_bar_text_width(conn, font, ws_names[i]);
+        free(ws_names[i]);
+    }
+    free(ws_names);
+}
+
+void tfwm_right_bar(xcb_connection_t *conn, xcb_screen_t *screen,
+                    xcb_window_t window, xcb_font_t font, xcb_gcontext_t active_gc,
+                    xcb_gcontext_t inactive_gc) {
+    char *sep = BAR_SEPARATOR;
+    int   sep_width = tfwm_bar_text_width(conn, font, sep);
+
+    xcb_image_text_8(conn, strlen(sep), window, inactive_gc, pos_x_left, BAR_HEIGHT,
+                     sep);
+    pos_x_right -= sep_width;
+
+    char *tfwm = "tfwm-0.0.1";
+    pos_x_right -= tfwm_bar_text_width(conn, font, tfwm);
+    xcb_image_text_8(conn, strlen(tfwm), window, inactive_gc, pos_x_right,
+                     BAR_HEIGHT, tfwm);
+}
+
+void tfwm_middle_bar(xcb_connection_t *conn, xcb_screen_t *screen,
+                     xcb_window_t window, xcb_font_t font, xcb_gcontext_t active_gc,
+                     xcb_gcontext_t inactive_gc) {
+    char *sep = BAR_SEPARATOR;
+    int   sep_width = tfwm_bar_text_width(conn, font, sep);
+
+    tfwm_workspace_t *ws = tfwm_util_get_current_workspace();
+    int               pos_x = pos_x_left;
+
+    if (ws->window_len > 0) {
+        xcb_image_text_8(conn, strlen(sep), window, inactive_gc, pos_x_left,
+                         BAR_HEIGHT, sep);
+        pos_x += sep_width;
+
+        char **win_names = tfwm_bar_window_str_list(ws);
+        int    width = (pos_x_right - pos_x_left) / ws->window_len;
+        int    char_width = (width / sep_width) - 1;
+        if (char_width > 255) {
+            char_width = 255;
+        }
+
+        for (size_t i = 0; i < ws->window_len; i++) {
+            char wn[char_width];
+            tfwm_bar_pad_text(win_names[i], wn, char_width);
+            if (tfwm_util_check_current_window(ws->window_list[i].window)) {
+                xcb_image_text_8(conn, strlen(wn), window, active_gc, pos_x,
+                                 BAR_HEIGHT, wn);
+            } else {
+                xcb_image_text_8(conn, strlen(wn), window, inactive_gc, pos_x,
+                                 BAR_HEIGHT, wn);
+            }
+            pos_x += width;
+            free(win_names[i]);
+        }
+        free(win_names);
+    }
+}
+
+void tfwm_bar(xcb_connection_t *conn, xcb_screen_t *screen, xcb_window_t window) {
     xcb_font_t font = xcb_generate_id(conn);
     xcb_open_font(conn, font, strlen(BAR_FONT_NAME), BAR_FONT_NAME);
 
@@ -119,54 +228,12 @@ void tfwm_left_bar(xcb_connection_t *conn, xcb_screen_t *screen,
                   XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT,
                   inactive_vals);
 
-    int               pos_x = 0;
-    char             *sep = BAR_SEPARATOR;
-    size_t            ws_len = tfwm_util_get_workspaces_len();
-    tfwm_workspace_t *ws_list = tfwm_util_get_workspaces();
-    tfwm_workspace_t *ws = tfwm_util_get_current_workspace();
+    pos_x_left = 0;
+    pos_x_right = screen->width_in_pixels;
 
-    char *layout = tfwm_bar_layout_str(ws);
-    xcb_image_text_8(conn, strlen(layout), window, inactive_gc, pos_x, BAR_HEIGHT,
-                     layout);
-    pos_x += tfwm_bar_text_width(conn, font, layout);
-    free(layout);
-
-    xcb_image_text_8(conn, strlen(sep), window, inactive_gc, pos_x, BAR_HEIGHT, sep);
-    pos_x += tfwm_bar_text_width(conn, font, sep);
-
-    char **ws_names = tfwm_bar_workspace_str_list(ws_list, ws_len);
-    for (size_t i = 0; i < ws_len; i++) {
-        if (tfwm_util_check_current_workspace(i)) {
-            xcb_image_text_8(conn, strlen(ws_names[i]), window, active_gc, pos_x,
-                             BAR_HEIGHT, ws_names[i]);
-        } else {
-            xcb_image_text_8(conn, strlen(ws_names[i]), window, inactive_gc, pos_x,
-                             BAR_HEIGHT, ws_names[i]);
-        }
-        pos_x += tfwm_bar_text_width(conn, font, ws_names[i]);
-        free(ws_names[i]);
-    }
-    free(ws_names);
-
-    if (ws->window_len > 0) {
-        xcb_image_text_8(conn, strlen(sep), window, inactive_gc, pos_x, BAR_HEIGHT,
-                         sep);
-        pos_x += tfwm_bar_text_width(conn, font, sep);
-
-        char **win_names = tfwm_bar_window_str_list(ws);
-        for (size_t i = 0; i < ws->window_len; i++) {
-            if (tfwm_util_check_current_window(ws->window_list[i].window)) {
-                xcb_image_text_8(conn, strlen(win_names[i]), window, active_gc,
-                                 pos_x, BAR_HEIGHT, win_names[i]);
-            } else {
-                xcb_image_text_8(conn, strlen(win_names[i]), window, inactive_gc,
-                                 pos_x, BAR_HEIGHT, win_names[i]);
-            }
-            pos_x += tfwm_bar_text_width(conn, font, win_names[i]);
-            free(win_names[i]);
-        }
-        free(win_names);
-    }
+    tfwm_left_bar(conn, screen, window, font, active_gc, inactive_gc);
+    tfwm_right_bar(conn, screen, window, font, active_gc, inactive_gc);
+    tfwm_middle_bar(conn, screen, window, font, active_gc, inactive_gc);
 
     xcb_close_font(conn, font);
     xcb_free_gc(conn, active_gc);
