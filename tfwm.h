@@ -77,6 +77,7 @@ void tfwm_window_move(xcb_window_t window, int x, int y);
 void tfwm_window_resize(xcb_window_t window, int width, int height);
 void tfwm_window_raise(xcb_window_t window);
 void tfwm_window_fullscreen(xcb_window_t window);
+void tfwm_window_tile(void);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
@@ -90,7 +91,7 @@ void tfwm_workspace_use_window(char **cmd);
 
 void tfwm_workspace_remap(void);
 
-void tfwm_workspace_window_layout(xcb_window_t window);
+void tfwm_workspace_window_layout(void);
 void tfwm_workspace_window_malloc(tfwm_workspace_t *ws);
 void tfwm_workspace_window_realloc(tfwm_workspace_t *ws);
 void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w);

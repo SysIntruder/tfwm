@@ -21,6 +21,7 @@
 #define BORDER_WIDTH      1
 #define BORDER_ACTIVE     0xFFFFFF
 #define BORDER_INACTIVE   0x696969
+#define MASTER_RATIO      50.0
 
 /* ======================= BAR CONTENT ======================= */
 

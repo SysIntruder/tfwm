@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -156,13 +157,16 @@ void tfwm_window_kill(char **cmd) {
     tfwm_util_redraw_bar();
 
     if (workspaces[g_curr_ws].window_len == 0) {
+        tfwm_workspace_window_layout();
         return;
     } else if ((window_id + 1) >= workspaces[g_curr_ws].window_len) {
         tfwm_window_focus(workspaces[g_curr_ws]
                               .window_list[workspaces[g_curr_ws].window_len - 1]
                               .window);
+        tfwm_workspace_window_layout();
     } else if ((window_id + 1) < workspaces[g_curr_ws].window_len) {
         tfwm_window_focus(workspaces[g_curr_ws].window_list[window_id].window);
+        tfwm_workspace_window_layout();
     }
 }
 
@@ -234,6 +238,7 @@ void tfwm_window_swap_last(char **cmd) {
     ws->window_list[last_id].window = g_window;
     ws->window_list[window_id].window = last;
 
+    tfwm_workspace_window_layout();
     tfwm_workspace_remap();
 }
 
@@ -316,6 +321,49 @@ void tfwm_window_fullscreen(xcb_window_t window) {
 
     tfwm_window_move(window, x, y);
     tfwm_window_resize(window, width, height);
+}
+
+void tfwm_window_tile(void) {
+    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
+    if (ws->default_layout != TILING) {
+        return;
+    }
+    if (ws->window_len == 1) {
+        tfwm_window_fullscreen(g_window);
+        return;
+    }
+
+    int master_width = (MASTER_RATIO / 100.0) * g_screen->width_in_pixels;
+    int master_height = g_screen->height_in_pixels - (BAR_HEIGHT + BORDER_WIDTH) -
+                        (BORDER_WIDTH * 2);
+    int master_x = 0;
+    int master_y = BAR_HEIGHT + BORDER_WIDTH;
+
+    int slave_width = ((100.0 - MASTER_RATIO) / 100.0) * g_screen->width_in_pixels;
+    int slave_height = master_height;
+    int slave_x = master_width + BORDER_WIDTH;
+    int slave_y = BAR_HEIGHT + BORDER_WIDTH;
+
+    if (ws->window_len > 2) {
+        slave_height = master_height / (ws->window_len - 1);
+    }
+
+    int last_id = ws->window_len - 1;
+    for (int i = last_id; i >= 0; i--) {
+        if (ws->window_list[i].is_killed) {
+            continue;
+        }
+
+        xcb_window_t w = ws->window_list[i].window;
+        if (i == last_id) {
+            tfwm_window_move(w, master_x, master_y);
+            tfwm_window_resize(w, master_width, master_height);
+        } else {
+            tfwm_window_move(w, slave_x, slave_y);
+            tfwm_window_resize(w, slave_width, slave_height);
+            slave_y += (slave_height + BORDER_WIDTH);
+        }
+    }
 }
 
 /* =================== WORKSPACE FUNCTION ==================== */
@@ -403,13 +451,13 @@ void tfwm_workspace_remap(void) {
     xcb_flush(g_conn);
 }
 
-void tfwm_workspace_window_layout(xcb_window_t window) {
+void tfwm_workspace_window_layout() {
     tfwm_workspace_t *ws = &workspaces[g_curr_ws];
 
-    if (ws->default_layout == FLOATING) {
-        return;
-    } else if (ws->default_layout == WINDOW) {
-        tfwm_window_fullscreen(window);
+    if (ws->default_layout == WINDOW) {
+        tfwm_window_fullscreen(g_window);
+    } else if (ws->default_layout == TILING) {
+        tfwm_window_tile();
     }
 }
 
@@ -486,9 +534,10 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
     g_vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
     xcb_change_window_attributes_checked(g_conn, e->window, XCB_CW_EVENT_MASK,
                                          g_vals);
+    xcb_flush(g_conn);
 
     tfwm_window_focus(e->window);
-    tfwm_workspace_window_layout(e->window);
+    tfwm_workspace_window_layout();
     tfwm_util_redraw_bar();
 }
 
