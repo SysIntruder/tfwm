@@ -24,7 +24,7 @@
 
 /* ======================= BAR CONTENT ======================= */
 
-#define BAR_HEIGHT            12
+#define BAR_HEIGHT            14
 #define BAR_FONT_NAME         "-xos4-terminus-medium-r-normal--12-120-72-72-c-60-iso10646-1"
 #define BAR_FOREGROUND        0xFFFFFF
 #define BAR_BACKGROUND        0x000000
@@ -76,6 +76,7 @@ static tfwm_keybind_t keybinds[] = {
     /* Window Navigation*/
     {MOD_KEY,             0x006c, tfwm_window_next,            NULL      }, /* 0x006c = l */
     {MOD_KEY,             0x0068, tfwm_window_prev,            NULL      }, /* 0x0068 = h */
+    {MOD_KEY,             0x0020, tfwm_window_swap_last,       NULL      }, /* 0x0020 = Space */
 
     /* Workspace Navigation */
     {MOD_KEY,             0x0060, tfwm_workspace_swap_prev,    NULL      }, /* 0x0060 = grave */
