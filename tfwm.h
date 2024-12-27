@@ -47,12 +47,6 @@ enum tfwm_layouts {
 
 /* ========================== UTILS ========================== */
 
-int            tfwm_util_write_error(char *err);
-int            tfwm_util_compare_str(char *str1, char *str2);
-xcb_keycode_t *tfwm_util_get_keycode(xcb_keysym_t keysym);
-xcb_keysym_t   tfwm_util_get_keysym(xcb_keycode_t keycode);
-char          *tfwm_util_get_wm_class(xcb_window_t window);
-
 tfwm_workspace_t *tfwm_util_get_workspaces(void);
 size_t            tfwm_util_get_workspaces_len(void);
 tfwm_workspace_t *tfwm_util_get_workspace(size_t ws_id);

@@ -25,7 +25,7 @@
 
 /* ======================= BAR CONTENT ======================= */
 
-#define BAR_HEIGHT            14
+#define BAR_HEIGHT            10
 #define BAR_FONT_NAME         "-xos4-terminus-medium-r-normal--12-120-72-72-c-60-iso10646-1"
 #define BAR_FOREGROUND        0xFFFFFF
 #define BAR_BACKGROUND        0x000000
@@ -75,8 +75,10 @@ static tfwm_keybind_t keybinds[] = {
     {MOD_KEY,             0xff0d, tfwm_window_spawn,           cmd_term  }, /* 0xff0d = Return */
 
     /* Window Navigation*/
-    {MOD_KEY,             0x006c, tfwm_window_next,            NULL      }, /* 0x006c = l */
     {MOD_KEY,             0x0068, tfwm_window_prev,            NULL      }, /* 0x0068 = h */
+    {MOD_KEY,             0x006a, tfwm_window_prev,            NULL      }, /* 0x006a = j */
+    {MOD_KEY,             0x006b, tfwm_window_next,            NULL      }, /* 0x006b = k */
+    {MOD_KEY,             0x006c, tfwm_window_next,            NULL      }, /* 0x006c = l */
     {MOD_KEY,             0x0020, tfwm_window_swap_last,       NULL      }, /* 0x0020 = Space */
 
     /* Workspace Navigation */
@@ -98,5 +100,9 @@ static tfwm_keybind_t keybinds[] = {
     {MOD_KEY,             0x0066, tfwm_workspace_use_floating, NULL      }, /* 0x0066 = f */
     {MOD_KEY,             0x0077, tfwm_workspace_use_window,   NULL      }, /* 0x0077 = w */
 };
+
+/* =========================== MISC ========================== */
+
+#define LOG_FILE ".local/share/tfwm.0.log"
 
 #endif  // !CONFIG_H

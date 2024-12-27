@@ -1,12 +1,12 @@
 .POSIX:
-ALL_LDFLAGS = -lxcb -lxcb-keysyms $(LDFLAGS)
+ALL_LDFLAGS = -lxcb -lxcb-keysyms -lxcb-cursor $(LDFLAGS)
 ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
 ALL_WARNING = $(ALL_CFLAGS) -Wall -Wextra -pedantic
 PREFIX = /usr/local
 LDLIBS = -lm
 BIN_DIR = $(PREFIX)/bin
 
-objects = tfwm.o bar.o
+objects = tfwm.o bar.o util.o
 
 install: tfwm
 	mkdir -p $(BIN_DIR)

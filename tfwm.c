@@ -10,6 +10,7 @@
 #include "bar.h"
 #include "config.h"
 #include "tfwm.h"
+#include "util.h"
 
 static xcb_connection_t *g_conn;
 static xcb_screen_t     *g_screen;
@@ -20,75 +21,10 @@ static uint32_t g_vals[3];
 static int      g_curr_ws;
 static int      g_prev_ws;
 
+static int g_pointer_x;
+static int g_pointer_y;
+
 /* ========================== UTILS ========================== */
-
-int tfwm_util_write_error(char *err) {
-    size_t n = 0;
-    char  *e = err;
-    while ((*(e++)) != 0) {
-        ++n;
-    }
-
-    ssize_t out = write(STDERR_FILENO, err, n);
-    int     ret = 1;
-    if (out < 0) {
-        ret = -1;
-    }
-    return ret;
-}
-
-int tfwm_util_compare_str(char *str1, char *str2) {
-    char *c1 = str1;
-    char *c2 = str2;
-    while ((*c1) && ((*c1) == (*c2))) {
-        ++c1;
-        ++c2;
-    }
-
-    int n = (*c1) - (*c2);
-    return n;
-}
-
-xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym) {
-    xcb_key_symbols_t *ks = xcb_key_symbols_alloc(g_conn);
-    xcb_keycode_t     *keycode =
-        (!(ks) ? NULL : xcb_key_symbols_get_keycode(ks, keysym));
-    xcb_key_symbols_free(ks);
-    return keycode;
-}
-
-xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode) {
-    xcb_key_symbols_t *ks = xcb_key_symbols_alloc(g_conn);
-    xcb_keysym_t keysym = (!(ks) ? 0 : xcb_key_symbols_get_keysym(ks, keycode, 0));
-    xcb_key_symbols_free(ks);
-    return keysym;
-}
-
-char *tfwm_util_get_wm_class(xcb_window_t window) {
-    xcb_intern_atom_reply_t *rep = xcb_intern_atom_reply(
-        g_conn, xcb_intern_atom(g_conn, 0, strlen("WM_CLASS"), "WM_CLASS"), NULL);
-    if (!rep) {
-        return NULL;
-    }
-    xcb_atom_t atom = rep->atom;
-    free(rep);
-
-    xcb_get_property_reply_t *prep = xcb_get_property_reply(
-        g_conn, xcb_get_property(g_conn, 0, window, atom, XCB_ATOM_STRING, 0, 250),
-        NULL);
-    if (!prep) {
-        return NULL;
-    }
-    if (xcb_get_property_value_length(prep) == 0) {
-        free(prep);
-        return NULL;
-    }
-
-    char *wm_class = (char *)xcb_get_property_value(prep);
-    wm_class = wm_class + strlen(wm_class) + 1;
-    free(prep);
-    return wm_class;
-}
 
 tfwm_workspace_t *tfwm_util_get_workspaces(void) {
     return workspaces;
@@ -314,10 +250,9 @@ void tfwm_window_raise(xcb_window_t window) {
 
 void tfwm_window_fullscreen(xcb_window_t window) {
     int x = 0;
-    int y = BAR_HEIGHT + BORDER_WIDTH;
+    int y = BAR_HEIGHT;
     int width = g_screen->width_in_pixels - (BORDER_WIDTH * 2);
-    int height = g_screen->height_in_pixels - (BAR_HEIGHT + BORDER_WIDTH) -
-                 (BORDER_WIDTH * 2);
+    int height = g_screen->height_in_pixels - BAR_HEIGHT - (BORDER_WIDTH * 2);
 
     tfwm_window_move(window, x, y);
     tfwm_window_resize(window, width, height);
@@ -333,16 +268,17 @@ void tfwm_window_tile(void) {
         return;
     }
 
-    int master_width = (MASTER_RATIO / 100.0) * g_screen->width_in_pixels;
-    int master_height = g_screen->height_in_pixels - (BAR_HEIGHT + BORDER_WIDTH) -
-                        (BORDER_WIDTH * 2);
     int master_x = 0;
-    int master_y = BAR_HEIGHT + BORDER_WIDTH;
+    int master_y = BAR_HEIGHT;
+    int master_width =
+        ((MASTER_RATIO / 100.0) * g_screen->width_in_pixels) - (BORDER_WIDTH * 2);
+    int master_height = g_screen->height_in_pixels - BAR_HEIGHT - (BORDER_WIDTH * 2);
 
-    int slave_width = ((100.0 - MASTER_RATIO) / 100.0) * g_screen->width_in_pixels;
-    int slave_height = master_height;
     int slave_x = master_width + BORDER_WIDTH;
-    int slave_y = BAR_HEIGHT + BORDER_WIDTH;
+    int slave_y = master_y;
+    int slave_width = (((100.0 - MASTER_RATIO) / 100.0) * g_screen->width_in_pixels -
+                       (BORDER_WIDTH * 2));
+    int slave_height = master_height;
 
     if (ws->window_len > 2) {
         slave_height = master_height / (ws->window_len - 1);
@@ -495,7 +431,7 @@ void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w) {
 
 void tfwm_handle_keypress(xcb_generic_event_t *event) {
     xcb_key_press_event_t *e = (xcb_key_press_event_t *)event;
-    xcb_keysym_t           keysym = tfwm_util_get_keysym(e->detail);
+    xcb_keysym_t           keysym = tfwm_util_get_keysym(g_conn, e->detail);
 
     for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); i++) {
         if ((keybinds[i].keysym == keysym) && (keybinds[i].mod == e->state)) {
@@ -559,24 +495,45 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
         return;
     }
 
+    xcb_motion_notify_event_t *e = (xcb_motion_notify_event_t *)event;
+
     xcb_query_pointer_reply_t *point = xcb_query_pointer_reply(
-        g_conn, xcb_query_pointer(g_conn, g_screen->root), 0);
+        g_conn, xcb_query_pointer(g_conn, g_screen->root), NULL);
+    if (!point) {
+        return;
+    }
+
     xcb_get_geometry_reply_t *geo =
-        xcb_get_geometry_reply(g_conn, xcb_get_geometry(g_conn, g_window), 0);
+        xcb_get_geometry_reply(g_conn, xcb_get_geometry(g_conn, g_window), NULL);
+    if (!geo) {
+        goto clean_point;
+    }
 
     if (g_vals[2] == (uint32_t)(BUTTON_LEFT)) {
-        int x = point->root_x;
-        int y = point->root_y;
+        if ((g_pointer_x == point->root_x) && (g_pointer_y == point->root_y)) {
+            return;
+        }
+
+        int x = geo->x + point->root_x - g_pointer_x;
+        int y = geo->y + point->root_y - g_pointer_y;
+        g_pointer_x = point->root_x;
+        g_pointer_y = point->root_y;
         tfwm_window_move(g_window, x, y);
     } else if (g_vals[2] == (uint32_t)(BUTTON_RIGHT)) {
         if ((point->root_x <= geo->x) || (point->root_y <= geo->y)) {
             return;
         }
 
-        int width = point->root_x - geo->x - BORDER_WIDTH;
-        int height = point->root_y - geo->y - BORDER_WIDTH;
+        int width = geo->width + (point->root_x - g_pointer_x);
+        int height = geo->height + (point->root_y - g_pointer_y);
+        g_pointer_x = point->root_x;
+        g_pointer_y = point->root_y;
         tfwm_window_resize(g_window, width, height);
     }
+
+    free(geo);
+clean_point:
+    free(point);
 }
 
 void tfwm_handle_enter_notify(xcb_generic_event_t *event) {
@@ -592,6 +549,8 @@ void tfwm_handle_destroy_notify(xcb_generic_event_t *event) {
 void tfwm_handle_button_press(xcb_generic_event_t *event) {
     xcb_button_press_event_t *e = (xcb_button_press_event_t *)event;
     g_window = e->child;
+    g_pointer_x = e->event_x;
+    g_pointer_y = e->event_y;
     g_vals[0] = XCB_STACK_MODE_ABOVE;
     xcb_configure_window(g_conn, g_window, XCB_CONFIG_WINDOW_STACK_MODE, g_vals);
 
@@ -602,10 +561,17 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
                          XCB_EVENT_MASK_POINTER_MOTION_HINT,
                      XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, g_screen->root,
                      XCB_NONE, XCB_CURRENT_TIME);
+
+    if (g_vals[2] == (uint32_t)BUTTON_LEFT) {
+        tfwm_util_change_cursor(g_conn, g_screen, g_window, "fleur");
+    } else if (g_vals[2] == (uint32_t)BUTTON_RIGHT) {
+        tfwm_util_change_cursor(g_conn, g_screen, g_window, "bottom_right_corner");
+    }
 }
 
 void tfwm_handle_button_release(xcb_generic_event_t *event) {
     xcb_ungrab_pointer(g_conn, XCB_CURRENT_TIME);
+    tfwm_util_change_cursor(g_conn, g_screen, g_window, "left_ptr");
 }
 
 int tfwm_handle_event(void) {
@@ -642,7 +608,7 @@ static void tfwm_init(void) {
 
     xcb_ungrab_key(g_conn, XCB_GRAB_ANY, g_screen->root, XCB_MOD_MASK_ANY);
     for (int i = 0; i < sizeof(keybinds) / sizeof(*keybinds); i++) {
-        xcb_keycode_t *keycode = tfwm_util_get_keycodes(keybinds[i].keysym);
+        xcb_keycode_t *keycode = tfwm_util_get_keycodes(g_conn, keybinds[i].keysym);
         if (keycode != NULL) {
             xcb_grab_key(g_conn, 1, g_screen->root, keybinds[i].mod, *keycode,
                          XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
@@ -658,18 +624,19 @@ static void tfwm_init(void) {
                     XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
                     XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, g_screen->root,
                     XCB_NONE, BUTTON_RIGHT, MOD_KEY);
+    tfwm_util_change_cursor(g_conn, g_screen, g_screen->root, "left_ptr");
     xcb_flush(g_conn);
 
     g_bar = xcb_generate_id(g_conn);
     uint32_t bar_vals[3];
-    bar_vals[0] = 1;
-    bar_vals[1] = BAR_BACKGROUND;
+    bar_vals[0] = BAR_BACKGROUND;
+    bar_vals[1] = 1;
     bar_vals[2] = XCB_EVENT_MASK_EXPOSURE;
     xcb_create_window(
         g_conn, XCB_COPY_FROM_PARENT, g_bar, g_screen->root, 0, 0,
         g_screen->width_in_pixels, BAR_HEIGHT, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
         g_screen->root_visual,
-        XCB_CW_OVERRIDE_REDIRECT | XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, bar_vals);
+        XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK, bar_vals);
     uint32_t bar_cfg_vals[1];
     bar_vals[0] = XCB_STACK_MODE_ABOVE;
     xcb_configure_window(g_conn, g_bar, XCB_CONFIG_WINDOW_STACK_MODE, bar_cfg_vals);
