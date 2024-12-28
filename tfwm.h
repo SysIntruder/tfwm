@@ -4,21 +4,30 @@
 #include <stdlib.h>
 #include <xcb/xproto.h>
 
-/* ======================== SYS CONF ========================= */
+/* ========================= SYS CFG ========================= */
 
-#define DEFAULT_WS_WIN_MALLOC  5
-#define DEFAULT_WS_WIN_REALLOC 5
+static const int TFWM_DEFAULT_WS_WIN_ALLOC = 5;
 
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
-    uint8_t      is_floating;
-    uint8_t      is_killed;
     xcb_window_t window;
+    int          x;
+    int          y;
+    int          width;
+    int          height;
+    uint8_t      is_floating;
+    uint8_t      is_fullscreen;
 } tfwm_window_t;
 
+typedef enum {
+    TFWM_TILING,
+    TFWM_FLOATING,
+    TFWM_WINDOW,
+} tfwm_layout_t;
+
 typedef struct {
-    uint16_t       default_layout;
+    uint16_t       layout;
     char          *name;
     size_t         window_len;
     size_t         window_cap;
@@ -29,51 +38,41 @@ typedef struct {
     uint16_t     mod;
     xcb_keysym_t keysym;
     void (*func)(char **cmd);
-    char **cmd;
+    const char **cmd;
 } tfwm_keybind_t;
 
 typedef struct {
     uint32_t request;
-    void (*func)(xcb_generic_event_t *ev);
+    void (*func)(xcb_generic_event_t *evt);
 } tfwm_event_handler_t;
-
-/* ========================== ENUMS ========================== */
-
-enum tfwm_layouts {
-    TILING,
-    FLOATING,
-    WINDOW,
-};
 
 /* ========================== UTILS ========================== */
 
-tfwm_workspace_t *tfwm_util_get_workspaces(void);
+int               tfwm_util_write_error(char *err);
+void              tfwm_util_fwrite_log(char *log);
+xcb_keycode_t    *tfwm_util_get_keycodes(xcb_keysym_t keysym);
+xcb_keysym_t      tfwm_util_get_keysym(xcb_keycode_t keycode);
+char             *tfwm_util_get_wm_class(xcb_window_t window);
+void              tfwm_util_set_cursor(xcb_window_t window, char *name);
 size_t            tfwm_util_get_workspaces_len(void);
-tfwm_workspace_t *tfwm_util_get_workspace(size_t ws_id);
+tfwm_workspace_t *tfwm_util_get_workspaces(void);
+tfwm_workspace_t *tfwm_util_find_workspace(size_t wsid);
 tfwm_workspace_t *tfwm_util_get_current_workspace(void);
-int               tfwm_util_check_current_workspace(size_t ws_id);
+int               tfwm_util_get_current_window_id(void);
+int               tfwm_util_check_current_workspace(size_t wsid);
 int               tfwm_util_check_current_window(xcb_window_t window);
 void              tfwm_util_redraw_bar(void);
 
-/* ===================== WINDOW FUNCTION ===================== */
+/* ========================= COMMAND ========================= */
+
+void tfwm_exit(char **cmd);
 
 void tfwm_window_spawn(char **cmd);
 void tfwm_window_kill(char **cmd);
 void tfwm_window_next(char **cmd);
 void tfwm_window_prev(char **cmd);
 void tfwm_window_swap_last(char **cmd);
-
-void tfwm_window_focus(xcb_window_t window);
-void tfwm_window_focus_color(xcb_window_t window, int focus);
-void tfwm_window_map(xcb_window_t window);
-void tfwm_window_unmap(xcb_window_t window);
-void tfwm_window_move(xcb_window_t window, int x, int y);
-void tfwm_window_resize(xcb_window_t window, int width, int height);
-void tfwm_window_raise(xcb_window_t window);
-void tfwm_window_fullscreen(xcb_window_t window);
-void tfwm_window_tile(void);
-
-/* =================== WORKSPACE FUNCTION ==================== */
+void tfwm_window_toggle_fullscreen(char **cmd);
 
 void tfwm_workspace_switch(char **cmd);
 void tfwm_workspace_next(char **cmd);
@@ -83,12 +82,28 @@ void tfwm_workspace_use_tiling(char **cmd);
 void tfwm_workspace_use_floating(char **cmd);
 void tfwm_workspace_use_window(char **cmd);
 
+/* ===================== WINDOW FUNCTION ===================== */
+
+void tfwm_window_raise(xcb_window_t window);
+void tfwm_window_focus(xcb_window_t window);
+void tfwm_window_focus_color(xcb_window_t window, int focus);
+void tfwm_window_move(xcb_window_t window, int x, int y);
+void tfwm_window_resize(xcb_window_t window, int width, int height);
+void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width, int height);
+
+/* =================== WORKSPACE FUNCTION ==================== */
+
 void tfwm_workspace_remap(void);
 
-void tfwm_workspace_window_layout(void);
 void tfwm_workspace_window_malloc(tfwm_workspace_t *ws);
 void tfwm_workspace_window_realloc(tfwm_workspace_t *ws);
-void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t w);
+void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t window);
+
+/* ===================== LAYOUT FUNCTION ===================== */
+
+void tfwm_layout_apply_tiling(void);
+void tfwm_layout_apply_window(void);
+void tfwm_layout_update(void);
 
 /* ====================== EVENT HANDLER ====================== */
 
@@ -121,6 +136,5 @@ static tfwm_event_handler_t event_handlers[] = {
 /* ========================== SETUP ========================== */
 
 static void tfwm_init(void);
-void        tfwm_exit(char **cmd);
 
 #endif  // !TFWM_H

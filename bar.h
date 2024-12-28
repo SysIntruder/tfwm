@@ -4,8 +4,7 @@
 #include <xcb/xcb.h>
 #include "tfwm.h"
 
-static int  tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t font, char *text);
-static void tfwm_bar_pad_text(char *text, char *target, int count);
+static int tfwm_bar_text_width(xcb_connection_t *conn, xcb_font_t font, char *text);
 static char  *tfwm_bar_layout_str(tfwm_workspace_t *ws);
 static char **tfwm_bar_workspace_str_list(tfwm_workspace_t *ws, size_t ws_len);
 static char **tfwm_bar_window_str_list(xcb_connection_t *conn, tfwm_workspace_t *ws);

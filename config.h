@@ -14,67 +14,74 @@
 
 /* ========================== WINDOW ========================= */
 
-#define WINDOW_WIDTH      600
-#define WINDOW_HEIGHT     400
-#define MIN_WINDOW_WIDTH  60
-#define MIN_WINDOW_HEIGHT 40
-#define BORDER_WIDTH      1
-#define BORDER_ACTIVE     0xFFFFFF
-#define BORDER_INACTIVE   0x696969
-#define MASTER_RATIO      50.0
+static const uint32_t TFWM_WINDOW_WIDTH = 600;
+static const uint32_t TFWM_WINDOW_HEIGHT = 400;
+static const uint32_t TFWM_MIN_WINDOW_WIDTH = 60;
+static const uint32_t TFWM_MIN_WINDOW_HEIGHT = 40;
+static const uint32_t TFWM_BORDER_WIDTH = 1;
+static const uint32_t TFWM_BORDER_ACTIVE = 0xFFFFFF;
+static const uint32_t TFWM_BORDER_INACTIVE = 0x696969;
+static const double   TFWM_TILE_MASTER_RATIO = 50.0;
+
+/* ========================== CURSOR ========================= */
+
+static const char *TFWM_CURSOR_DEFAULT = "left_ptr";
+static const char *TFWM_CURSOR_MOVE = "fleur";
+static const char *TFWM_CURSOR_RESIZE = "bottom_right_corner";
 
 /* ======================= BAR CONTENT ======================= */
 
-#define BAR_HEIGHT            10
-#define BAR_FONT_NAME         "-xos4-terminus-medium-r-normal--12-120-72-72-c-60-iso10646-1"
-#define BAR_FOREGROUND        0xFFFFFF
-#define BAR_BACKGROUND        0x000000
-#define BAR_FOREGROUND_ACTIVE 0x000000
-#define BAR_BACKGROUND_ACTIVE 0xFFFFFF
-#define BAR_SEPARATOR         " "
+static const int   TFWM_BAR_HEIGHT = 10;
+static const char *TFWM_BAR_FONT =
+    "-xos4-terminus-medium-r-normal--12-120-72-72-c-60-iso10646-1";
+static const char    *TFWM_BAR_SEPARATOR = " ";
+static const uint32_t TFWM_BAR_FOREGROUND = 0xFFFFFF;
+static const uint32_t TFWM_BAR_BACKGROUND = 0x000000;
+static const uint32_t TFWM_BAR_FOREGROUND_ACTIVE = 0x000000;
+static const uint32_t TFWM_BAR_BACKGROUND_ACTIVE = 0xFFFFFF;
 
-#define LAYOUT_TILING_DISPLAY   "[T]"
-#define LAYOUT_FLOATING_DISPLAY "[F]"
-#define LAYOUT_WINDOW_DISPLAY   "[W]"
+static const char *TFWM_SIGN_TILING = "[T]";
+static const char *TFWM_SIGN_FLOATING = "[F]";
+static const char *TFWM_SIGN_WINDOW = "[W]";
 
 /* ======================== WORKSPACES ======================= */
 
 static tfwm_workspace_t workspaces[] = {
-    {TILING,   "1", 0},
-    {WINDOW,   "2", 0},
-    {FLOATING, "3", 0},
-    {TILING,   "4", 0},
-    {TILING,   "5", 0},
-    {TILING,   "6", 0},
-    {TILING,   "7", 0},
-    {TILING,   "8", 0},
-    {TILING,   "9", 0},
+    {TFWM_TILING, "1"},
+    {TFWM_TILING, "2"},
+    {TFWM_TILING, "3"},
+    {TFWM_TILING, "4"},
+    {TFWM_TILING, "5"},
+    {TFWM_TILING, "6"},
+    {TFWM_TILING, "7"},
+    {TFWM_TILING, "8"},
+    {TFWM_TILING, "9"},
 };
 
 /* ========================= COMMAND ========================= */
 
-static char *cmd_term[] = {"st", NULL};
+static const char *cmd_term[] = {"st", NULL};
 
-static char *switch_ws1[] = {"1", NULL};
-static char *switch_ws2[] = {"2", NULL};
-static char *switch_ws3[] = {"3", NULL};
-static char *switch_ws4[] = {"4", NULL};
-static char *switch_ws5[] = {"5", NULL};
-static char *switch_ws6[] = {"6", NULL};
-static char *switch_ws7[] = {"7", NULL};
-static char *switch_ws8[] = {"8", NULL};
-static char *switch_ws9[] = {"9", NULL};
+static const char *switch_ws1[] = {"1", NULL};
+static const char *switch_ws2[] = {"2", NULL};
+static const char *switch_ws3[] = {"3", NULL};
+static const char *switch_ws4[] = {"4", NULL};
+static const char *switch_ws5[] = {"5", NULL};
+static const char *switch_ws6[] = {"6", NULL};
+static const char *switch_ws7[] = {"7", NULL};
+static const char *switch_ws8[] = {"8", NULL};
+static const char *switch_ws9[] = {"9", NULL};
 
 /* ========================= KEYBIND ========================= */
 
-static tfwm_keybind_t keybinds[] = {
+static const tfwm_keybind_t keybinds[] = {
     {MOD_KEY | MOD_SHIFT, 0x0071, tfwm_exit,                   NULL      }, /* 0x0071 = q */
 
     /* Application */
     {MOD_KEY,             0x0071, tfwm_window_kill,            NULL      }, /* 0x0071 = q */
     {MOD_KEY,             0xff0d, tfwm_window_spawn,           cmd_term  }, /* 0xff0d = Return */
 
-    /* Window Navigation*/
+    /* Window Navigation */
     {MOD_KEY,             0x0068, tfwm_window_prev,            NULL      }, /* 0x0068 = h */
     {MOD_KEY,             0x006a, tfwm_window_prev,            NULL      }, /* 0x006a = j */
     {MOD_KEY,             0x006b, tfwm_window_next,            NULL      }, /* 0x006b = k */
@@ -103,6 +110,6 @@ static tfwm_keybind_t keybinds[] = {
 
 /* =========================== MISC ========================== */
 
-#define LOG_FILE ".local/share/tfwm.0.log"
+static const char *TFWM_LOG_FILE = ".local/share/tfwm.0.log";
 
 #endif  // !CONFIG_H
