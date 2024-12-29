@@ -8,12 +8,12 @@ and "https://git.suckless.org/dwm".
 REQUIREMENTS
 ------------
 
-xcb-util-keysyms, terminus-font
+xcb-util-keysyms
 
 NOTES
 -----
 
-If terminus not listed in xlsfonts
+If using custom bitmap font (terminus-font for example) and it's not listed in xlsfonts
     $ sudo pacman -S terminus-font
     $ cd /usr/share/fonts/misc
     $ sudo mkfontscale

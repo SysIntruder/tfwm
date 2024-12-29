@@ -31,9 +31,8 @@ static const char *TFWM_CURSOR_RESIZE = "bottom_right_corner";
 
 /* ======================= BAR CONTENT ======================= */
 
-static const int   TFWM_BAR_HEIGHT = 10;
-static const char *TFWM_BAR_FONT =
-    "-xos4-terminus-medium-r-normal--12-120-72-72-c-60-iso10646-1";
+static const int      TFWM_BAR_HEIGHT = 10;
+static const char    *TFWM_BAR_FONT = "fixed";
 static const char    *TFWM_BAR_SEPARATOR = " ";
 static const uint32_t TFWM_BAR_FOREGROUND = 0xFFFFFF;
 static const uint32_t TFWM_BAR_BACKGROUND = 0x000000;
