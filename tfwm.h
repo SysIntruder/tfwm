@@ -16,6 +16,7 @@ typedef struct {
     int          y;
     int          width;
     int          height;
+    int          border_width;
     uint8_t      is_floating;
     uint8_t      is_fullscreen;
 } tfwm_window_t;
@@ -95,9 +96,9 @@ void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width, int heig
 
 void tfwm_workspace_remap(void);
 
-void tfwm_workspace_window_malloc(tfwm_workspace_t *ws);
-void tfwm_workspace_window_realloc(tfwm_workspace_t *ws);
-void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t window);
+void tfwm_workspace_window_malloc(void);
+void tfwm_workspace_window_realloc(void);
+void tfwm_workspace_window_append(tfwm_window_t window);
 
 /* ===================== LAYOUT FUNCTION ===================== */
 
@@ -111,8 +112,9 @@ void tfwm_handle_keypress(xcb_generic_event_t *event);
 void tfwm_handle_map_request(xcb_generic_event_t *event);
 void tfwm_handle_focus_in(xcb_generic_event_t *event);
 void tfwm_handle_focus_out(xcb_generic_event_t *event);
-void tfwm_handle_motion_notify(xcb_generic_event_t *event);
 void tfwm_handle_enter_notify(xcb_generic_event_t *event);
+void tfwm_handle_leave_notify(xcb_generic_event_t *event);
+void tfwm_handle_motion_notify(xcb_generic_event_t *event);
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event);
 void tfwm_handle_button_press(xcb_generic_event_t *event);
 void tfwm_handle_button_release(xcb_generic_event_t *event);
@@ -125,8 +127,9 @@ static tfwm_event_handler_t event_handlers[] = {
     {XCB_MAP_REQUEST,    tfwm_handle_map_request   },
     {XCB_FOCUS_IN,       tfwm_handle_focus_in      },
     {XCB_FOCUS_OUT,      tfwm_handle_focus_out     },
-    {XCB_MOTION_NOTIFY,  tfwm_handle_motion_notify },
     {XCB_ENTER_NOTIFY,   tfwm_handle_enter_notify  },
+    {XCB_LEAVE_NOTIFY,   tfwm_handle_leave_notify  },
+    {XCB_MOTION_NOTIFY,  tfwm_handle_motion_notify },
     {XCB_DESTROY_NOTIFY, tfwm_handle_destroy_notify},
     {XCB_BUTTON_PRESS,   tfwm_handle_button_press  },
     {XCB_BUTTON_RELEASE, tfwm_handle_button_release},

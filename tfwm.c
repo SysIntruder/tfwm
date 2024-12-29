@@ -190,16 +190,15 @@ void tfwm_window_kill(char **cmd) {
     if (window_id < 0) {
         return;
     }
-    xcb_kill_client(g_conn, g_window);
-    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
 
+    xcb_window_t      target = g_window;
+    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
     if (window_id < ws->window_len - 1) {
         for (int i = window_id + 1; i < ws->window_len; i++) {
             ws->window_list[i - 1] = ws->window_list[i];
         }
     }
     ws->window_len -= 1;
-    tfwm_util_redraw_bar();
 
     if (workspaces[g_curr_ws].window_len == 0) {
     } else if ((window_id + 1) >= ws->window_len) {
@@ -208,6 +207,10 @@ void tfwm_window_kill(char **cmd) {
         tfwm_window_focus(ws->window_list[window_id].window);
     }
     tfwm_layout_update();
+    tfwm_util_redraw_bar();
+    xcb_flush(g_conn);
+
+    xcb_kill_client(g_conn, target);
 }
 
 void tfwm_window_next(char **cmd) {
@@ -294,21 +297,22 @@ void tfwm_window_toggle_fullscreen(char **cmd) {
     }
 
     tfwm_workspace_t *ws = tfwm_util_get_current_workspace();
-    int               wid = tfwm_util_get_current_window_id();
-    int               x = 0;
-    int               y = 0;
+    tfwm_window_t    *w = &ws->window_list[tfwm_util_get_current_window_id()];
+    int               x = 0 - TFWM_BORDER_WIDTH;
+    int               y = 0 - TFWM_BORDER_WIDTH;
     int               width = g_screen->width_in_pixels;
     int               height = g_screen->height_in_pixels;
 
-    if (ws->window_list[wid].is_fullscreen == 1) {
-        x = ws->window_list[wid].x;
-        y = ws->window_list[wid].y;
-        width = ws->window_list[wid].width;
-        height = ws->window_list[wid].height;
+    if (w->is_fullscreen == 1) {
+        x = w->x;
+        y = w->y;
+        width = w->width;
+        height = w->height;
     }
 
     tfwm_window_move(g_window, x, y);
     tfwm_window_resize(g_window, width, height);
+    w->is_fullscreen ^= 1;
 }
 
 void tfwm_workspace_switch(char **cmd) {
@@ -409,6 +413,7 @@ void tfwm_window_focus(xcb_window_t window) {
             break;
         }
     }
+    tfwm_window_raise(g_window);
 }
 
 void tfwm_window_focus_color(xcb_window_t window, int focus) {
@@ -478,7 +483,8 @@ void tfwm_workspace_remap(void) {
     tfwm_util_redraw_bar();
 }
 
-void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
+void tfwm_workspace_window_malloc() {
+    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
     if (ws->window_list) {
         return;
     }
@@ -488,7 +494,8 @@ void tfwm_workspace_window_malloc(tfwm_workspace_t *ws) {
     ws->window_cap = TFWM_DEFAULT_WS_WIN_ALLOC;
 }
 
-void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
+void tfwm_workspace_window_realloc() {
+    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
     if (!ws->window_list) {
         return;
     }
@@ -504,7 +511,15 @@ void tfwm_workspace_window_realloc(tfwm_workspace_t *ws) {
     ws->window_cap += TFWM_DEFAULT_WS_WIN_ALLOC;
 }
 
-void tfwm_workspace_window_append(tfwm_workspace_t *ws, tfwm_window_t window) {
+void tfwm_workspace_window_append(tfwm_window_t window) {
+    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
+
+    if (!ws->window_list) {
+        tfwm_workspace_window_malloc();
+    } else if (ws->window_cap == ws->window_len) {
+        tfwm_workspace_window_realloc();
+    }
+
     ws->window_list[ws->window_len++] = window;
 }
 
@@ -520,7 +535,7 @@ void tfwm_layout_apply_tiling(void) {
     int master_height =
         g_screen->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
 
-    int slave_x = master_width + TFWM_BORDER_WIDTH;
+    int slave_x = master_width + (TFWM_BORDER_WIDTH * 2);
     int slave_y = master_y;
     int slave_width =
         (((100.0 - TFWM_TILE_MASTER_RATIO) / 100.0) * g_screen->width_in_pixels -
@@ -528,19 +543,31 @@ void tfwm_layout_apply_tiling(void) {
     int slave_height = master_height;
 
     if (ws->window_len > 2) {
-        slave_height = master_height / (ws->window_len - 1);
+        slave_height =
+            ((g_screen->height_in_pixels - TFWM_BAR_HEIGHT) / (ws->window_len - 1)) -
+            (TFWM_BORDER_WIDTH * 2);
     }
-
     int last_id = ws->window_len - 1;
+
     for (int i = last_id; i >= 0; i--) {
-        xcb_window_t w = ws->window_list[i].window;
+        tfwm_window_t *w = &ws->window_list[i];
         if (i == last_id) {
-            tfwm_window_move(w, master_x, master_y);
-            tfwm_window_resize(w, master_width, master_height);
+            w->x = master_x;
+            w->y = master_y;
+            w->width = master_width;
+            w->height = master_height;
+            tfwm_window_move(w->window, master_x, master_y);
+            tfwm_window_resize(w->window, master_width, master_height);
+            tfwm_window_focus_color(w->window, 1);
         } else {
-            tfwm_window_move(w, slave_x, slave_y);
-            tfwm_window_resize(w, slave_width, slave_height);
-            slave_y += (slave_height + TFWM_BORDER_WIDTH);
+            w->x = slave_x;
+            w->y = slave_y;
+            w->width = slave_width;
+            w->height = slave_height;
+            tfwm_window_move(w->window, slave_x, slave_y);
+            tfwm_window_resize(w->window, slave_width, slave_height);
+            tfwm_window_focus_color(w->window, 0);
+            slave_y += (slave_height + (TFWM_BORDER_WIDTH * 2));
         }
     }
 }
@@ -552,14 +579,18 @@ void tfwm_layout_apply_window(void) {
     int               width = g_screen->width_in_pixels - (TFWM_BORDER_WIDTH * 2);
     int               height =
         g_screen->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
-
     int last_id = ws->window_len - 1;
+
     for (int i = last_id; i >= 0; i--) {
-        xcb_window_t w = ws->window_list[i].window;
-        tfwm_window_move(w, x, y);
-        tfwm_window_resize(w, width, height);
-        if (w == g_window) {
-            tfwm_window_raise(w);
+        tfwm_window_t *w = &ws->window_list[i];
+        w->x = x;
+        w->y = y;
+        w->width = width;
+        w->height = height;
+        tfwm_window_move(w->window, x, y);
+        tfwm_window_resize(w->window, width, height);
+        if (w->window == g_window) {
+            tfwm_window_raise(w->window);
         }
     }
 }
@@ -597,17 +628,6 @@ void tfwm_handle_keypress(xcb_generic_event_t *event) {
 void tfwm_handle_map_request(xcb_generic_event_t *event) {
     xcb_map_request_event_t *e = (xcb_map_request_event_t *)event;
 
-    tfwm_workspace_t *ws = &workspaces[g_curr_ws];
-    if (!ws->window_list) {
-        tfwm_workspace_window_malloc(ws);
-    } else if (ws->window_cap == ws->window_len) {
-        tfwm_workspace_window_realloc(ws);
-    }
-    tfwm_window_t win = {e->window};
-    tfwm_workspace_window_append(ws, win);
-    g_window = e->window;
-
-    xcb_map_window(g_conn, e->window);
     uint32_t vals[5];
     vals[0] = (g_screen->width_in_pixels / 2) - (TFWM_WINDOW_WIDTH / 2);
     vals[1] = (g_screen->height_in_pixels / 2) - (TFWM_WINDOW_HEIGHT / 2);
@@ -619,11 +639,14 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
                              XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
                              XCB_CONFIG_WINDOW_BORDER_WIDTH,
                          vals);
+    tfwm_window_t w = {e->window, vals[0], vals[1], vals[2], vals[3], vals[4]};
+    tfwm_workspace_window_append(w);
+    xcb_map_window(g_conn, e->window);
+    xcb_flush(g_conn);
 
     g_vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
     xcb_change_window_attributes_checked(g_conn, e->window, XCB_CW_EVENT_MASK,
                                          g_vals);
-    xcb_flush(g_conn);
 
     tfwm_window_focus(e->window);
     tfwm_layout_update();
@@ -638,6 +661,14 @@ void tfwm_handle_focus_in(xcb_generic_event_t *event) {
 void tfwm_handle_focus_out(xcb_generic_event_t *event) {
     xcb_focus_out_event_t *e = (xcb_focus_out_event_t *)event;
     tfwm_window_focus_color(e->event, 0);
+}
+
+void tfwm_handle_enter_notify(xcb_generic_event_t *event) {
+    xcb_enter_notify_event_t *e = (xcb_enter_notify_event_t *)event;
+}
+
+void tfwm_handle_leave_notify(xcb_generic_event_t *event) {
+    xcb_leave_notify_event_t *e = (xcb_leave_notify_event_t *)event;
 }
 
 void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
@@ -689,11 +720,6 @@ clean_point:
     free(point);
 }
 
-void tfwm_handle_enter_notify(xcb_generic_event_t *event) {
-    xcb_enter_notify_event_t *e = (xcb_enter_notify_event_t *)event;
-    tfwm_window_focus(e->event);
-}
-
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event) {
     xcb_destroy_notify_event_t *e = (xcb_destroy_notify_event_t *)event;
     xcb_kill_client(g_conn, e->window);
@@ -704,8 +730,7 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
     g_window = e->child;
     g_pointer_x = e->event_x;
     g_pointer_y = e->event_y;
-    g_vals[0] = XCB_STACK_MODE_ABOVE;
-    xcb_configure_window(g_conn, g_window, XCB_CONFIG_WINDOW_STACK_MODE, g_vals);
+    tfwm_window_focus(g_window);
 
     g_vals[2] = ((e->detail == BUTTON_LEFT) ? BUTTON_LEFT
                                             : ((g_window != 0) ? BUTTON_RIGHT : 0));
