@@ -8,35 +8,42 @@
 
 static const int TFWM_DEFAULT_WS_WIN_ALLOC = 5;
 
+/* ========================== ENUMS ========================== */
+
+enum {
+    TFWM_LAYOUT_TILING,
+    TFWM_LAYOUT_FLOATING,
+    TFWM_LAYOUT_WINDOW,
+};
+
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
     xcb_window_t window;
-    int          x;
-    int          y;
-    int          width;
-    int          height;
-    int          border_width;
-    uint8_t      is_floating;
-    uint8_t      is_fullscreen;
+    int x;
+    int y;
+    int width;
+    int height;
+    int border_width;
+    uint8_t is_floating;
+    uint8_t is_fullscreen;
 } tfwm_window_t;
 
-typedef enum {
-    TFWM_TILING,
-    TFWM_FLOATING,
-    TFWM_WINDOW,
+typedef struct {
+    uint16_t layout;
+    char *symbol;
 } tfwm_layout_t;
 
 typedef struct {
-    uint16_t       layout;
-    char          *name;
-    size_t         window_len;
-    size_t         window_cap;
+    uint16_t layout;
+    char *name;
+    size_t window_len;
+    size_t window_cap;
     tfwm_window_t *window_list;
 } tfwm_workspace_t;
 
 typedef struct {
-    uint16_t     mod;
+    uint16_t mod;
     xcb_keysym_t keysym;
     void (*func)(char **cmd);
     const char **cmd;
@@ -47,22 +54,43 @@ typedef struct {
     void (*func)(xcb_generic_event_t *evt);
 } tfwm_event_handler_t;
 
+typedef struct {
+    /* xcb */
+    xcb_connection_t *conn;
+    xcb_screen_t *screen;
+    xcb_window_t window;
+    xcb_window_t bar;
+    uint32_t vals[3];
+
+    /* workspace */
+    int curr_workspace;
+    int prev_workspace;
+    size_t workspace_len;
+    tfwm_workspace_t *workspace_list;
+
+    /* updated on button press */
+    int pointer_x;
+    int pointer_y;
+
+    /* error handling */
+    int exit;
+} tfwm_xcb_t;
+
 /* ========================== UTILS ========================== */
 
-int               tfwm_util_write_error(char *err);
-void              tfwm_util_fwrite_log(char *log);
-xcb_keycode_t    *tfwm_util_get_keycodes(xcb_keysym_t keysym);
-xcb_keysym_t      tfwm_util_get_keysym(xcb_keycode_t keycode);
-char             *tfwm_util_get_wm_class(xcb_window_t window);
-void              tfwm_util_set_cursor(xcb_window_t window, char *name);
-size_t            tfwm_util_get_workspaces_len(void);
+void tfwm_util_log(char *log, int exit);
+xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym);
+xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
+char *tfwm_util_get_wm_class(xcb_window_t window);
+void tfwm_util_set_cursor(xcb_window_t window, char *name);
+size_t tfwm_util_get_workspaces_len(void);
 tfwm_workspace_t *tfwm_util_get_workspaces(void);
 tfwm_workspace_t *tfwm_util_find_workspace(size_t wsid);
 tfwm_workspace_t *tfwm_util_get_current_workspace(void);
-int               tfwm_util_get_current_window_id(void);
-int               tfwm_util_check_current_workspace(size_t wsid);
-int               tfwm_util_check_current_window(xcb_window_t window);
-void              tfwm_util_redraw_bar(void);
+int tfwm_util_get_current_window_id(void);
+int tfwm_util_check_current_workspace(size_t wsid);
+int tfwm_util_check_current_window(xcb_window_t window);
+void tfwm_util_redraw_bar(void);
 
 /* ========================= COMMAND ========================= */
 
@@ -118,7 +146,7 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event);
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event);
 void tfwm_handle_button_press(xcb_generic_event_t *event);
 void tfwm_handle_button_release(xcb_generic_event_t *event);
-int  tfwm_handle_event(void);
+int tfwm_handle_event(void);
 
 /* ======================= VARIABLES ========================= */
 

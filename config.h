@@ -12,49 +12,54 @@
 #define BUTTON_LEFT  1
 #define BUTTON_RIGHT 3
 
-/* ========================== WINDOW ========================= */
-
-static const uint32_t TFWM_WINDOW_WIDTH = 600;
-static const uint32_t TFWM_WINDOW_HEIGHT = 400;
-static const uint32_t TFWM_MIN_WINDOW_WIDTH = 60;
-static const uint32_t TFWM_MIN_WINDOW_HEIGHT = 40;
-static const uint32_t TFWM_BORDER_WIDTH = 1;
-static const uint32_t TFWM_BORDER_ACTIVE = 0xFFFFFF;
-static const uint32_t TFWM_BORDER_INACTIVE = 0x696969;
-static const double   TFWM_TILE_MASTER_RATIO = 50.0;
-
 /* ========================== CURSOR ========================= */
 
 static const char *TFWM_CURSOR_DEFAULT = "left_ptr";
 static const char *TFWM_CURSOR_MOVE = "fleur";
 static const char *TFWM_CURSOR_RESIZE = "bottom_right_corner";
 
-/* ======================= BAR CONTENT ======================= */
+/* ========================== COLORS ========================= */
 
-static const int      TFWM_BAR_HEIGHT = 10;
-static const char    *TFWM_BAR_FONT = "fixed";
+static const uint32_t BLACK = 0x000000;
+static const uint32_t GRAY = 0x696969;
+static const uint32_t WHITE = 0xFFFFFF;
+static const uint32_t RED = 0xFF0000;
+static const uint32_t GREEN = 0x00FF00;
+static const uint32_t BLUE = 0x0000FF;
+
+/* ========================== WINDOW ========================= */
+
+static const uint32_t TFWM_WINDOW_WIDTH = 600;
+static const uint32_t TFWM_WINDOW_HEIGHT = 400;
+static const uint32_t TFWM_MIN_WINDOW_WIDTH = 60;
+static const uint32_t TFWM_MIN_WINDOW_HEIGHT = 40;
+
+static const uint32_t TFWM_BORDER_WIDTH = 1;
+static const uint32_t TFWM_BORDER_ACTIVE = WHITE;
+static const uint32_t TFWM_BORDER_INACTIVE = GRAY;
+
+static const double TFWM_TILE_MASTER_RATIO = 50.0;
+
+/* =========================== BAR =========================== */
+
+static const char *TFWM_FONT = "fixed";
+static const int   TFWM_FONT_HEIGHT = 13;
+
+static const int      TFWM_BAR_HEIGHT = TFWM_FONT_HEIGHT + 2;
 static const char    *TFWM_BAR_SEPARATOR = " ";
-static const uint32_t TFWM_BAR_FOREGROUND = 0xFFFFFF;
-static const uint32_t TFWM_BAR_BACKGROUND = 0x000000;
-static const uint32_t TFWM_BAR_FOREGROUND_ACTIVE = 0x000000;
-static const uint32_t TFWM_BAR_BACKGROUND_ACTIVE = 0xFFFFFF;
-
-static const char *TFWM_SIGN_TILING = "[T]";
-static const char *TFWM_SIGN_FLOATING = "[F]";
-static const char *TFWM_SIGN_WINDOW = "[W]";
+static const uint32_t TFWM_BAR_FG = WHITE;
+static const uint32_t TFWM_BAR_BG = BLACK;
+static const uint32_t TFWM_BAR_FG_ACTIVE = BLACK;
+static const uint32_t TFWM_BAR_BG_ACTIVE = WHITE;
 
 /* ======================== WORKSPACES ======================= */
 
-static tfwm_workspace_t workspaces[] = {
-    {TFWM_TILING, "1"},
-    {TFWM_TILING, "2"},
-    {TFWM_TILING, "3"},
-    {TFWM_TILING, "4"},
-    {TFWM_TILING, "5"},
-    {TFWM_TILING, "6"},
-    {TFWM_TILING, "7"},
-    {TFWM_TILING, "8"},
-    {TFWM_TILING, "9"},
+static const char         *cfg_workspace_list[] = {"1", "2", "3", "4", "5",
+                                                   "6", "7", "8", "9"};
+static const tfwm_layout_t cfg_active_layout[] = {
+    {TFWM_LAYOUT_WINDOW,   "[W]"},
+    {TFWM_LAYOUT_TILING,   "[T]"},
+    {TFWM_LAYOUT_FLOATING, "[F]"},
 };
 
 /* ========================= COMMAND ========================= */
@@ -73,7 +78,7 @@ static const char *cmd_ws9[] = {"9", NULL};
 
 /* ========================= KEYBIND ========================= */
 
-static const tfwm_keybind_t keybinds[] = {
+static const tfwm_keybind_t cfg_keybinds[] = {
     {MOD_KEY | MOD_SHIFT, 0x0071, tfwm_exit,                     NULL    }, /* 0x0071 = q */
 
     /* Application */

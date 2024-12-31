@@ -1,7 +1,5 @@
 BasedOnStyle: google
 AlignArrayOfStructures: Left
-AlignConsecutiveDeclarations: Consecutive
-AlignConsecutiveMacros: Consecutive
 AlignOperands: Align
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: None
