@@ -7,6 +7,6 @@ AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
 ColumnLimit: 85
-IndentWidth: 4
+IndentWidth: 2
 SortIncludes: Never
 SpaceBeforeParens: ControlStatements

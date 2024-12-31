@@ -5,11 +5,11 @@
 
 /* ========================= MOD KEY ========================= */
 
-#define MOD_KEY   XCB_MOD_MASK_4
+#define MOD_KEY XCB_MOD_MASK_4
 #define MOD_SHIFT XCB_MOD_MASK_SHIFT
-#define MOD_CTRL  XCB_MOD_MASK_SHIFT
+#define MOD_CTRL XCB_MOD_MASK_SHIFT
 
-#define BUTTON_LEFT  1
+#define BUTTON_LEFT 1
 #define BUTTON_RIGHT 3
 
 /* ========================== CURSOR ========================= */
@@ -43,10 +43,10 @@ static const double TFWM_TILE_MASTER_RATIO = 50.0;
 /* =========================== BAR =========================== */
 
 static const char *TFWM_FONT = "fixed";
-static const int   TFWM_FONT_HEIGHT = 13;
+static const int TFWM_FONT_HEIGHT = 13;
 
-static const int      TFWM_BAR_HEIGHT = TFWM_FONT_HEIGHT + 2;
-static const char    *TFWM_BAR_SEPARATOR = " ";
+static const int TFWM_BAR_HEIGHT = TFWM_FONT_HEIGHT + 2;
+static const char *TFWM_BAR_SEPARATOR = " ";
 static const uint32_t TFWM_BAR_FG = WHITE;
 static const uint32_t TFWM_BAR_BG = BLACK;
 static const uint32_t TFWM_BAR_FG_ACTIVE = BLACK;
@@ -54,9 +54,9 @@ static const uint32_t TFWM_BAR_BG_ACTIVE = WHITE;
 
 /* ======================== WORKSPACES ======================= */
 
-static const char         *cfg_workspace_list[] = {"1", "2", "3", "4", "5",
-                                                   "6", "7", "8", "9"};
-static const tfwm_layout_t cfg_active_layout[] = {
+static const char *cfg_workspace_list[] = {"1", "2", "3", "4", "5",
+                                           "6", "7", "8", "9"};
+static const tfwm_layout_t cfg_layout[] = {
     {TFWM_LAYOUT_WINDOW,   "[W]"},
     {TFWM_LAYOUT_TILING,   "[T]"},
     {TFWM_LAYOUT_FLOATING, "[F]"},

@@ -6,7 +6,7 @@ PREFIX = /usr/local
 LDLIBS = -lm
 BIN_DIR = $(PREFIX)/bin
 
-c = tfwm.c bar.c
+c = tfwm.c
 
 install: tfwm
 	mkdir -p $(BIN_DIR)

@@ -11,86 +11,90 @@ static const int TFWM_DEFAULT_WS_WIN_ALLOC = 5;
 /* ========================== ENUMS ========================== */
 
 enum {
-    TFWM_LAYOUT_TILING,
-    TFWM_LAYOUT_FLOATING,
-    TFWM_LAYOUT_WINDOW,
+  TFWM_LAYOUT_TILING,
+  TFWM_LAYOUT_FLOATING,
+  TFWM_LAYOUT_WINDOW,
 };
 
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
-    xcb_window_t window;
-    int x;
-    int y;
-    int width;
-    int height;
-    int border_width;
-    uint8_t is_floating;
-    uint8_t is_fullscreen;
+  xcb_window_t window;
+  int x;
+  int y;
+  int width;
+  int height;
+  int border_width;
+  uint8_t is_floating;
+  uint8_t is_fullscreen;
 } tfwm_window_t;
 
 typedef struct {
-    uint16_t layout;
-    char *symbol;
+  uint16_t layout;
+  char *symbol;
 } tfwm_layout_t;
 
 typedef struct {
-    uint16_t layout;
-    char *name;
-    size_t window_len;
-    size_t window_cap;
-    tfwm_window_t *window_list;
+  uint16_t layout;
+  char *name;
+  size_t window_len;
+  size_t window_cap;
+  tfwm_window_t *window_list;
 } tfwm_workspace_t;
 
 typedef struct {
-    uint16_t mod;
-    xcb_keysym_t keysym;
-    void (*func)(char **cmd);
-    const char **cmd;
+  uint16_t mod;
+  xcb_keysym_t keysym;
+  void (*func)(char **cmd);
+  const char **cmd;
 } tfwm_keybind_t;
 
 typedef struct {
-    uint32_t request;
-    void (*func)(xcb_generic_event_t *evt);
+  uint32_t request;
+  void (*func)(xcb_generic_event_t *evt);
 } tfwm_event_handler_t;
 
 typedef struct {
-    /* xcb */
-    xcb_connection_t *conn;
-    xcb_screen_t *screen;
-    xcb_window_t window;
-    xcb_window_t bar;
-    uint32_t vals[3];
+  /* xcb */
+  xcb_connection_t *conn;
+  xcb_screen_t *screen;
+  xcb_window_t window;
+  uint32_t vals[3];
 
-    /* workspace */
-    int curr_workspace;
-    int prev_workspace;
-    size_t workspace_len;
-    tfwm_workspace_t *workspace_list;
+  /* workspace */
+  int curr_workspace;
+  int prev_workspace;
+  size_t workspace_len;
+  tfwm_workspace_t *workspace_list;
 
-    /* updated on button press */
-    int pointer_x;
-    int pointer_y;
+  /* updated on button press */
+  int pointer_x;
+  int pointer_y;
 
-    /* error handling */
-    int exit;
+  /* error handling */
+  int exit;
 } tfwm_xcb_t;
+
+typedef struct {
+  xcb_window_t container;
+  xcb_font_t font;
+  xcb_gcontext_t active_gc;
+  xcb_gcontext_t inactive_gc;
+
+  int x_left;
+  int x_right;
+} tfwm_bar_t;
 
 /* ========================== UTILS ========================== */
 
-void tfwm_util_log(char *log, int exit);
-xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym);
-xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
-char *tfwm_util_get_wm_class(xcb_window_t window);
-void tfwm_util_set_cursor(xcb_window_t window, char *name);
-size_t tfwm_util_get_workspaces_len(void);
-tfwm_workspace_t *tfwm_util_get_workspaces(void);
-tfwm_workspace_t *tfwm_util_find_workspace(size_t wsid);
-tfwm_workspace_t *tfwm_util_get_current_workspace(void);
-int tfwm_util_get_current_window_id(void);
-int tfwm_util_check_current_workspace(size_t wsid);
-int tfwm_util_check_current_window(xcb_window_t window);
-void tfwm_util_redraw_bar(void);
+static void tfwm_util_log(char *log, int exit);
+static xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym);
+static xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
+static char *tfwm_util_get_wm_class(xcb_window_t window);
+static void tfwm_util_set_cursor(xcb_window_t window, char *name);
+static int tfwm_util_get_current_window_pos(void);
+static int tfwm_util_text_width(char *text);
+static void tfwm_util_redraw_bar(void);
 
 /* ========================= COMMAND ========================= */
 
@@ -113,26 +117,27 @@ void tfwm_workspace_use_window(char **cmd);
 
 /* ===================== WINDOW FUNCTION ===================== */
 
-void tfwm_window_raise(xcb_window_t window);
-void tfwm_window_focus(xcb_window_t window);
-void tfwm_window_focus_color(xcb_window_t window, int focus);
-void tfwm_window_move(xcb_window_t window, int x, int y);
-void tfwm_window_resize(xcb_window_t window, int width, int height);
-void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width, int height);
+static void tfwm_window_raise(xcb_window_t window);
+static void tfwm_window_focus(xcb_window_t window);
+static void tfwm_window_focus_color(xcb_window_t window, int focus);
+static void tfwm_window_move(xcb_window_t window, int x, int y);
+static void tfwm_window_resize(xcb_window_t window, int width, int height);
+static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width,
+                                 int height);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-void tfwm_workspace_remap(void);
+static void tfwm_workspace_remap(void);
 
-void tfwm_workspace_window_malloc(void);
-void tfwm_workspace_window_realloc(void);
-void tfwm_workspace_window_append(tfwm_window_t window);
+static void tfwm_workspace_window_malloc(void);
+static void tfwm_workspace_window_realloc(void);
+static void tfwm_workspace_window_append(tfwm_window_t window);
 
 /* ===================== LAYOUT FUNCTION ===================== */
 
-void tfwm_layout_apply_tiling(void);
-void tfwm_layout_apply_window(void);
-void tfwm_layout_update(void);
+static void tfwm_layout_apply_tiling(void);
+static void tfwm_layout_apply_window(void);
+static void tfwm_layout_update(void);
 
 /* ====================== EVENT HANDLER ====================== */
 
@@ -146,7 +151,17 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event);
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event);
 void tfwm_handle_button_press(xcb_generic_event_t *event);
 void tfwm_handle_button_release(xcb_generic_event_t *event);
-int tfwm_handle_event(void);
+
+static int tfwm_handle_event(void);
+
+/* =========================== BAR =========================== */
+
+static char *tfwm_bar_layout_str(void);
+static char **tfwm_bar_workspace_str_list(void);
+static char **tfwm_bar_window_str_list();
+static void tfwm_left_bar(void);
+static void tfwm_right_bar(void);
+static void tfwm_bar_run();
 
 /* ======================= VARIABLES ========================= */
 
@@ -167,5 +182,6 @@ static tfwm_event_handler_t event_handlers[] = {
 /* ========================== SETUP ========================== */
 
 static void tfwm_init(void);
+static void tfwm_init_bar(void);
 
 #endif  // !TFWM_H
