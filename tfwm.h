@@ -67,6 +67,9 @@ typedef struct {
   size_t workspace_len;
   tfwm_workspace_t *workspace_list;
 
+  /* window */
+  int curr_window;
+
   /* updated on button press */
   int pointer_x;
   int pointer_y;
@@ -92,7 +95,6 @@ static xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym);
 static xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
 static char *tfwm_util_get_wm_class(xcb_window_t window);
 static void tfwm_util_set_cursor(xcb_window_t window, char *name);
-static int tfwm_util_get_current_window_pos(void);
 static int tfwm_util_text_width(char *text);
 static void tfwm_util_redraw_bar(void);
 
@@ -156,11 +158,12 @@ static int tfwm_handle_event(void);
 
 /* =========================== BAR =========================== */
 
-static char *tfwm_bar_layout_str(void);
-static char **tfwm_bar_workspace_str_list(void);
-static char **tfwm_bar_window_str_list();
-static void tfwm_left_bar(void);
-static void tfwm_right_bar(void);
+static void tfwm_bar_render_left(xcb_gcontext_t gc, char *text);
+static void tfwm_bar_render_right(xcb_gcontext_t gc, char *text);
+static void tfwm_bar_module_layout(void (*render)(xcb_gcontext_t, char *));
+static void tfwm_bar_module_separator(void (*render)(xcb_gcontext_t, char *));
+static void tfwm_bar_module_workspace(void (*render)(xcb_gcontext_t, char *));
+static void tfwm_bar_module_window();
 static void tfwm_bar_run();
 
 /* ======================= VARIABLES ========================= */
