@@ -704,7 +704,7 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
     goto clean_point;
   }
 
-  if (core.pressed_button == (uint32_t)(BUTTON_LEFT)) {
+  if (core.cur_button == (uint32_t)(BUTTON_LEFT)) {
     if ((core.pointer_x == point->root_x) && (core.pointer_y == point->root_y)) {
       return;
     }
@@ -714,7 +714,7 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
     core.pointer_x = point->root_x;
     core.pointer_y = point->root_y;
     tfwm_window_move(core.window, x, y);
-  } else if (core.pressed_button == (uint32_t)(BUTTON_RIGHT)) {
+  } else if (core.cur_button == (uint32_t)(BUTTON_RIGHT)) {
     if ((point->root_x <= geo->x) || (point->root_y <= geo->y)) {
       return;
     }
@@ -743,7 +743,7 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
   core.pointer_y = e->event_y;
   tfwm_window_focus(core.window);
 
-  core.pressed_button =
+  core.cur_button =
       ((e->detail == BUTTON_LEFT) ? BUTTON_LEFT
                                   : ((core.window != 0) ? BUTTON_RIGHT : 0));
   xcb_grab_pointer(core.conn, 0, core.screen->root,
@@ -752,9 +752,9 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
                    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, core.screen->root,
                    XCB_NONE, XCB_CURRENT_TIME);
 
-  if (core.pressed_button == (uint32_t)BUTTON_LEFT) {
+  if (core.cur_button == (uint32_t)BUTTON_LEFT) {
     tfwm_util_set_cursor(core.window, (char *)TFWM_CURSOR_MOVE);
-  } else if (core.pressed_button == (uint32_t)BUTTON_RIGHT) {
+  } else if (core.cur_button == (uint32_t)BUTTON_RIGHT) {
     tfwm_util_set_cursor(core.window, (char *)TFWM_CURSOR_RESIZE);
   }
 }

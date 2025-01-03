@@ -55,23 +55,19 @@ typedef struct {
 } tfwm_event_handler_t;
 
 typedef struct {
-  int exit;
-
   xcb_connection_t *conn;
   xcb_screen_t *screen;
   xcb_window_t window;
-
   xcb_window_t bar;
   xcb_font_t font;
   xcb_gcontext_t gc_active;
   xcb_gcontext_t gc_inactive;
   int bar_x_left;
   int bar_x_right;
-
-  uint32_t pressed_button;
   int pointer_x;
   int pointer_y;
-
+  int exit;
+  uint32_t cur_button;
   uint32_t cur_window;
   uint32_t cur_workspace;
   uint32_t prv_workspace;
