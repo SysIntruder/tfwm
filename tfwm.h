@@ -172,6 +172,5 @@ static tfwm_event_handler_t event_handlers[] = {
 /* ========================== SETUP ========================== */
 
 static void tfwm_init(void);
-static void tfwm_init_bar(void);
 
 #endif  // !TFWM_H
