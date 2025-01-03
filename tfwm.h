@@ -19,14 +19,14 @@ enum {
 /* ========================= TYPEDEF ========================= */
 
 typedef struct {
-  xcb_window_t window;
+  uint8_t is_fullscreen;
   int x;
   int y;
   int width;
   int height;
   int border_width;
-  uint8_t is_floating;
-  uint8_t is_fullscreen;
+  xcb_window_t window;
+  char *class;
 } tfwm_window_t;
 
 typedef struct {
@@ -36,9 +36,9 @@ typedef struct {
 
 typedef struct {
   uint16_t layout;
-  char *name;
-  size_t window_len;
-  size_t window_cap;
+  uint32_t window_len;
+  uint32_t window_cap;
+  const char *name;
   tfwm_window_t *window_list;
 } tfwm_workspace_t;
 
@@ -55,38 +55,29 @@ typedef struct {
 } tfwm_event_handler_t;
 
 typedef struct {
-  /* xcb */
+  int exit;
+
   xcb_connection_t *conn;
   xcb_screen_t *screen;
   xcb_window_t window;
-  uint32_t vals[3];
 
-  /* workspace */
-  int curr_workspace;
-  int prev_workspace;
-  size_t workspace_len;
-  tfwm_workspace_t *workspace_list;
+  xcb_window_t bar;
+  xcb_font_t font;
+  xcb_gcontext_t gc_active;
+  xcb_gcontext_t gc_inactive;
+  int bar_x_left;
+  int bar_x_right;
 
-  /* window */
-  int curr_window;
-
-  /* updated on button press */
+  uint32_t pressed_button;
   int pointer_x;
   int pointer_y;
 
-  /* error handling */
-  int exit;
+  uint32_t cur_window;
+  uint32_t cur_workspace;
+  uint32_t prv_workspace;
+  uint32_t workspace_len;
+  tfwm_workspace_t *workspace_list;
 } tfwm_xcb_t;
-
-typedef struct {
-  xcb_window_t container;
-  xcb_font_t font;
-  xcb_gcontext_t active_gc;
-  xcb_gcontext_t inactive_gc;
-
-  int x_left;
-  int x_right;
-} tfwm_bar_t;
 
 /* ========================== UTILS ========================== */
 
