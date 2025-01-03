@@ -979,9 +979,7 @@ static void tfwm_init(void) {
     ws.name = cfg_workspace_list[i];
     core.workspace_list[i] = ws;
   }
-}
 
-static void tfwm_init_bar() {
   core.bar = xcb_generate_id(core.conn);
   uint32_t bar_vals[3];
   bar_vals[0] = TFWM_BAR_BG;
@@ -1041,7 +1039,6 @@ int main(int argc, char *argv[]) {
 
   core.screen = xcb_setup_roots_iterator(xcb_get_setup(core.conn)).data;
   tfwm_init();
-  tfwm_init_bar();
 
   while (core.exit == EXIT_SUCCESS) {
     core.exit = tfwm_handle_event();
