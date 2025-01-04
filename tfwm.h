@@ -24,8 +24,8 @@ typedef struct {
   int y;
   int width;
   int height;
-  int border_width;
-  xcb_window_t window;
+  int border;
+  xcb_window_t win;
   char *class;
 } tfwm_window_t;
 
@@ -36,10 +36,10 @@ typedef struct {
 
 typedef struct {
   uint16_t layout;
-  uint32_t window_len;
-  uint32_t window_cap;
+  uint32_t win_len;
+  uint32_t win_cap;
   const char *name;
-  tfwm_window_t *window_list;
+  tfwm_window_t *win_list;
 } tfwm_workspace_t;
 
 typedef struct {
@@ -64,15 +64,15 @@ typedef struct {
   xcb_gcontext_t gc_inactive;
   int bar_x_left;
   int bar_x_right;
-  int pointer_x;
-  int pointer_y;
+  int ptr_x_post;
+  int ptr_y_pos;
   int exit;
-  uint32_t cur_button;
-  uint32_t cur_window;
-  uint32_t cur_workspace;
-  uint32_t prv_workspace;
-  uint32_t workspace_len;
-  tfwm_workspace_t *workspace_list;
+  uint32_t cur_btn;
+  uint32_t cur_win;
+  uint32_t cur_ws;
+  uint32_t prv_ws;
+  uint32_t ws_len;
+  tfwm_workspace_t *ws_list;
 } tfwm_xcb_t;
 
 /* ========================== UTILS ========================== */
@@ -80,10 +80,11 @@ typedef struct {
 static void tfwm_util_log(char *log, int exit);
 static xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym);
 static xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
-static char *tfwm_util_get_wm_class(xcb_window_t window);
+static char *tfwm_util_window_class(xcb_window_t window);
 static void tfwm_util_set_cursor(xcb_window_t window, char *name);
 static int tfwm_util_text_width(char *text);
 static void tfwm_util_redraw_bar(void);
+static void tfwm_util_cleanup(void);
 
 /* ========================= COMMAND ========================= */
 
@@ -108,7 +109,7 @@ void tfwm_workspace_use_window(char **cmd);
 
 static void tfwm_window_raise(xcb_window_t window);
 static void tfwm_window_focus(xcb_window_t window);
-static void tfwm_window_focus_color(xcb_window_t window, int focus);
+static void tfwm_window_color(xcb_window_t window, uint32_t color);
 static void tfwm_window_move(xcb_window_t window, int x, int y);
 static void tfwm_window_resize(xcb_window_t window, int width, int height);
 static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width,
@@ -118,8 +119,8 @@ static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width,
 
 static void tfwm_workspace_remap(void);
 
-static void tfwm_workspace_window_malloc(void);
-static void tfwm_workspace_window_realloc(void);
+static void tfwm_workspace_window_malloc(uint32_t wsid);
+static void tfwm_workspace_window_realloc(uint32_t wsid);
 static void tfwm_workspace_window_append(tfwm_window_t window);
 
 /* ===================== LAYOUT FUNCTION ===================== */
