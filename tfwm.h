@@ -83,6 +83,7 @@ static xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
 static char *tfwm_util_window_class(xcb_window_t window);
 static void tfwm_util_set_cursor(xcb_window_t window, char *name);
 static int tfwm_util_text_width(char *text);
+static void tfwm_util_find_workspace(char *name, uint32_t *wsid, uint8_t *found);
 static void tfwm_util_redraw_bar(void);
 static void tfwm_util_cleanup(void);
 
@@ -95,7 +96,8 @@ void tfwm_window_kill(char **cmd);
 void tfwm_window_next(char **cmd);
 void tfwm_window_prev(char **cmd);
 void tfwm_window_swap_last(char **cmd);
-void tfwm_window_toggle_fullscreen(char **cmd);
+void tfwm_window_fullscreen(char **cmd);
+void tfwm_window_to_workspace(char **cmd);
 
 void tfwm_workspace_switch(char **cmd);
 void tfwm_workspace_next(char **cmd);
@@ -121,13 +123,14 @@ static void tfwm_workspace_remap(void);
 
 static void tfwm_workspace_window_malloc(uint32_t wsid);
 static void tfwm_workspace_window_realloc(uint32_t wsid);
-static void tfwm_workspace_window_append(tfwm_window_t window);
+static void tfwm_workspace_window_append(uint32_t wsid, tfwm_window_t window);
+static void tfwm_workspace_window_pop(uint32_t wid);
 
 /* ===================== LAYOUT FUNCTION ===================== */
 
-static void tfwm_layout_apply_tiling(void);
-static void tfwm_layout_apply_window(void);
-static void tfwm_layout_update(void);
+static void tfwm_layout_apply_tiling(uint32_t wsid);
+static void tfwm_layout_apply_window(uint32_t wsid);
+static void tfwm_layout_update(uint32_t wsid);
 
 /* ====================== EVENT HANDLER ====================== */
 
@@ -157,17 +160,17 @@ static void tfwm_bar_run();
 /* ======================= VARIABLES ========================= */
 
 static tfwm_event_handler_t event_handlers[] = {
-    {XCB_KEY_PRESS,      tfwm_handle_keypress      },
-    {XCB_MAP_REQUEST,    tfwm_handle_map_request   },
-    {XCB_FOCUS_IN,       tfwm_handle_focus_in      },
-    {XCB_FOCUS_OUT,      tfwm_handle_focus_out     },
-    {XCB_ENTER_NOTIFY,   tfwm_handle_enter_notify  },
-    {XCB_LEAVE_NOTIFY,   tfwm_handle_leave_notify  },
-    {XCB_MOTION_NOTIFY,  tfwm_handle_motion_notify },
+    {XCB_KEY_PRESS, tfwm_handle_keypress},
+    {XCB_MAP_REQUEST, tfwm_handle_map_request},
+    {XCB_FOCUS_IN, tfwm_handle_focus_in},
+    {XCB_FOCUS_OUT, tfwm_handle_focus_out},
+    {XCB_ENTER_NOTIFY, tfwm_handle_enter_notify},
+    {XCB_LEAVE_NOTIFY, tfwm_handle_leave_notify},
+    {XCB_MOTION_NOTIFY, tfwm_handle_motion_notify},
     {XCB_DESTROY_NOTIFY, tfwm_handle_destroy_notify},
-    {XCB_BUTTON_PRESS,   tfwm_handle_button_press  },
+    {XCB_BUTTON_PRESS, tfwm_handle_button_press},
     {XCB_BUTTON_RELEASE, tfwm_handle_button_release},
-    {XCB_NONE,           NULL                      },
+    {XCB_NONE, NULL},
 };
 
 /* ========================== SETUP ========================== */

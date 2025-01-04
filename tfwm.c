@@ -103,7 +103,7 @@ static void tfwm_util_set_cursor(xcb_window_t win, char *name) {
 
 static int tfwm_util_text_width(char *text) {
   size_t txt_len = strlen(text);
-  xcb_char2b_t *bt = malloc(txt_len * sizeof(xcb_char2b_t));
+  xcb_char2b_t bt[txt_len * sizeof(xcb_char2b_t)];
   for (int i = 0; i < txt_len; i++) {
     bt[i].byte1 = 0;
     bt[i].byte2 = text[i];
@@ -120,6 +120,16 @@ static int tfwm_util_text_width(char *text) {
   return width;
 }
 
+static void tfwm_util_find_workspace(char *name, uint32_t *wsid, uint8_t *found) {
+  for (uint32_t i = 0; i < core.ws_len; i++) {
+    if ((strcmp(name, core.ws_list[i].name) == 0) && (i != core.cur_ws)) {
+      *wsid = i;
+      *found = 1;
+      break;
+    }
+  }
+}
+
 static void tfwm_util_redraw_bar(void) {
   xcb_clear_area(core.conn, 1, core.bar, 0, 0, 0, 0);
 }
@@ -128,6 +138,11 @@ static void tfwm_util_cleanup(void) {
   if (core.ws_list) {
     for (uint32_t i = 0; i < core.ws_len; i++) {
       if (core.ws_list[i].win_list) {
+        for (uint32_t j = 0; j < core.ws_list[i].win_cap; j++) {
+          if (core.ws_list[i].win_list[j].class) {
+            free(core.ws_list[i].win_list[j].class);
+          }
+        }
         free(core.ws_list[i].win_list);
       }
     }
@@ -169,38 +184,18 @@ void tfwm_window_spawn(char **cmd) {
 }
 
 void tfwm_window_kill(char **cmd) {
-  int wid;
-  uint8_t found = 0;
-
-  for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
-    if (core.ws_list[core.cur_ws].win_list[i].win == core.window) {
-      wid = i;
-      found = 1;
-      break;
-    }
-  }
-  if (found == 0) {
-    return;
-  }
-
   xcb_window_t target = core.window;
-  if (wid < core.ws_list[core.cur_ws].win_len - 1) {
-    for (uint32_t i = wid + 1; i < core.ws_list[core.cur_ws].win_len; i++) {
-      core.ws_list[core.cur_ws].win_list[i - 1] =
-          core.ws_list[core.cur_ws].win_list[i];
-    }
-  }
-  core.ws_list[core.cur_ws].win_len--;
-
+  tfwm_workspace_window_pop(core.cur_win);
   if (core.ws_list[core.cur_ws].win_len == 0) {
-  } else if ((wid + 1) >= core.ws_list[core.cur_ws].win_len) {
+  } else if ((core.cur_win + 1) >= core.ws_list[core.cur_ws].win_len) {
     tfwm_window_focus(core.ws_list[core.cur_ws]
                           .win_list[core.ws_list[core.cur_ws].win_len - 1]
                           .win);
-  } else if ((wid + 1) < core.ws_list[core.cur_ws].win_len) {
-    tfwm_window_focus(core.ws_list[core.cur_ws].win_list[wid].win);
+  } else if ((core.cur_win + 1) < core.ws_list[core.cur_ws].win_len) {
+    tfwm_window_focus(core.ws_list[core.cur_ws].win_list[core.cur_win].win);
   }
-  tfwm_layout_update();
+
+  tfwm_layout_update(core.cur_ws);
   tfwm_util_redraw_bar();
   xcb_flush(core.conn);
 
@@ -208,7 +203,7 @@ void tfwm_window_kill(char **cmd) {
 }
 
 void tfwm_window_next(char **cmd) {
-  int wid;
+  uint32_t wid;
   uint8_t found;
   for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
     if (core.ws_list[core.cur_ws].win_list[i].win == core.window) {
@@ -229,7 +224,7 @@ void tfwm_window_next(char **cmd) {
 }
 
 void tfwm_window_prev(char **cmd) {
-  int wid;
+  uint32_t wid;
   uint8_t found;
   for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
     if (core.ws_list[core.cur_ws].win_list[i].win == core.window) {
@@ -256,7 +251,7 @@ void tfwm_window_swap_last(char **cmd) {
     return;
   }
 
-  int wid;
+  uint32_t wid;
   uint8_t found;
   for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
     if (core.ws_list[core.cur_ws].win_list[i].win == core.window) {
@@ -282,12 +277,12 @@ void tfwm_window_swap_last(char **cmd) {
   core.ws_list[core.cur_ws].win_list[last_id].win = core.window;
   core.ws_list[core.cur_ws].win_list[wid].win = last;
   if (core.ws_list[core.cur_ws].layout == TFWM_LAYOUT_TILING) {
-    tfwm_layout_apply_tiling();
+    tfwm_layout_apply_tiling(core.cur_ws);
   }
   tfwm_window_focus(core.window);
 }
 
-void tfwm_window_toggle_fullscreen(char **cmd) {
+void tfwm_window_fullscreen(char **cmd) {
   if (core.window == 0) {
     return;
   }
@@ -312,14 +307,36 @@ void tfwm_window_toggle_fullscreen(char **cmd) {
   core.ws_list[core.cur_ws].win_list[core.cur_win].is_fullscreen ^= 1;
 }
 
-void tfwm_workspace_switch(char **cmd) {
-  for (uint32_t i = 0; i < core.ws_len; i++) {
-    char *wsname = (char *)cmd[0];
-    if ((strcmp(wsname, core.ws_list[i].name) == 0) && (i != core.cur_ws)) {
-      core.prv_ws = core.cur_ws;
-      core.cur_ws = i;
-    }
+void tfwm_window_to_workspace(char **cmd) {
+  uint32_t wsid;
+  uint8_t found;
+  tfwm_util_find_workspace((char *)cmd[0], &wsid, &found);
+  if (found == 0) {
+    return;
   }
+
+  tfwm_workspace_window_append(wsid,
+                               core.ws_list[core.cur_ws].win_list[core.cur_win]);
+  tfwm_workspace_window_pop(core.cur_win);
+
+  core.prv_ws = core.cur_ws;
+  core.cur_ws = wsid;
+  if (core.ws_list[core.prv_ws].layout != core.ws_list[core.cur_ws].layout) {
+    tfwm_layout_update(core.cur_ws);
+  }
+  tfwm_workspace_remap();
+}
+
+void tfwm_workspace_switch(char **cmd) {
+  uint32_t wsid;
+  uint8_t found;
+  tfwm_util_find_workspace((char *)cmd[0], &wsid, &found);
+  if (found == 0) {
+    return;
+  }
+
+  core.prv_ws = core.cur_ws;
+  core.cur_ws = wsid;
   tfwm_workspace_remap();
 }
 
@@ -361,7 +378,7 @@ void tfwm_workspace_use_tiling(char **cmd) {
     return;
   }
   core.ws_list[core.cur_ws].layout = TFWM_LAYOUT_TILING;
-  tfwm_layout_apply_tiling();
+  tfwm_layout_apply_tiling(core.cur_ws);
 }
 
 void tfwm_workspace_use_floating(char **cmd) {
@@ -376,7 +393,7 @@ void tfwm_workspace_use_window(char **cmd) {
     return;
   }
   core.ws_list[core.cur_ws].layout = TFWM_LAYOUT_WINDOW;
-  tfwm_layout_apply_window();
+  tfwm_layout_apply_window(core.cur_ws);
 }
 
 /* ===================== WINDOW FUNCTION ===================== */
@@ -501,25 +518,34 @@ static void tfwm_workspace_window_realloc(uint32_t wsid) {
   core.ws_list[wsid].win_cap += TFWM_DEFAULT_WS_WIN_ALLOC;
 }
 
-static void tfwm_workspace_window_append(tfwm_window_t window) {
-  if (!core.ws_list[core.cur_ws].win_list) {
-    tfwm_workspace_window_malloc(core.cur_ws);
-  } else if (core.ws_list[core.cur_ws].win_cap ==
-             core.ws_list[core.cur_ws].win_len) {
-    tfwm_workspace_window_realloc(core.cur_ws);
+static void tfwm_workspace_window_append(uint32_t wsid, tfwm_window_t window) {
+  if (!core.ws_list[wsid].win_list) {
+    tfwm_workspace_window_malloc(wsid);
+  } else if (core.ws_list[wsid].win_cap == core.ws_list[wsid].win_len) {
+    tfwm_workspace_window_realloc(wsid);
   }
 
-  core.ws_list[core.cur_ws].win_list[core.ws_list[core.cur_ws].win_len++] = window;
+  core.ws_list[wsid].win_list[core.ws_list[wsid].win_len++] = window;
+}
+
+static void tfwm_workspace_window_pop(uint32_t wid) {
+  if (wid < core.ws_list[core.cur_ws].win_len - 1) {
+    for (uint32_t i = wid + 1; i < core.ws_list[core.cur_ws].win_len; i++) {
+      core.ws_list[core.cur_ws].win_list[i - 1] =
+          core.ws_list[core.cur_ws].win_list[i];
+    }
+  }
+  core.ws_list[core.cur_ws].win_len--;
 }
 
 /* ===================== LAYOUT FUNCTION ===================== */
 
-static void tfwm_layout_apply_tiling(void) {
-  if (core.ws_list[core.cur_ws].win_len == 0) {
+static void tfwm_layout_apply_tiling(uint32_t wsid) {
+  if (core.ws_list[wsid].win_len == 0) {
     return;
   }
-  if (core.ws_list[core.cur_ws].win_len == 1) {
-    tfwm_layout_apply_window();
+  if (core.ws_list[wsid].win_len == 1) {
+    tfwm_layout_apply_window(wsid);
     return;
   }
 
@@ -537,42 +563,39 @@ static void tfwm_layout_apply_tiling(void) {
        (TFWM_BORDER_WIDTH * 2));
   int slave_height = master_height;
 
-  if (core.ws_list[core.cur_ws].win_len > 2) {
+  if (core.ws_list[wsid].win_len > 2) {
     slave_height = ((core.screen->height_in_pixels - TFWM_BAR_HEIGHT) /
-                    (core.ws_list[core.cur_ws].win_len - 1)) -
+                    (core.ws_list[wsid].win_len - 1)) -
                    (TFWM_BORDER_WIDTH * 2);
   }
-  int last_id = core.ws_list[core.cur_ws].win_len - 1;
+  int last_id = core.ws_list[wsid].win_len - 1;
 
   for (int i = last_id; i >= 0; i--) {
     if (i == last_id) {
-      core.ws_list[core.cur_ws].win_list[i].x = master_x;
-      core.ws_list[core.cur_ws].win_list[i].y = master_y;
-      core.ws_list[core.cur_ws].win_list[i].width = master_width;
-      core.ws_list[core.cur_ws].win_list[i].height = master_height;
-      tfwm_window_move(core.ws_list[core.cur_ws].win_list[i].win, master_x,
-                       master_y);
-      tfwm_window_resize(core.ws_list[core.cur_ws].win_list[i].win, master_width,
+      core.ws_list[wsid].win_list[i].x = master_x;
+      core.ws_list[wsid].win_list[i].y = master_y;
+      core.ws_list[wsid].win_list[i].width = master_width;
+      core.ws_list[wsid].win_list[i].height = master_height;
+      tfwm_window_move(core.ws_list[wsid].win_list[i].win, master_x, master_y);
+      tfwm_window_resize(core.ws_list[wsid].win_list[i].win, master_width,
                          master_height);
-      tfwm_window_color(core.ws_list[core.cur_ws].win_list[i].win,
-                        TFWM_BORDER_ACTIVE);
+      tfwm_window_color(core.ws_list[wsid].win_list[i].win, TFWM_BORDER_ACTIVE);
     } else {
-      core.ws_list[core.cur_ws].win_list[i].x = slave_x;
-      core.ws_list[core.cur_ws].win_list[i].y = slave_y;
-      core.ws_list[core.cur_ws].win_list[i].width = slave_width;
-      core.ws_list[core.cur_ws].win_list[i].height = slave_height;
-      tfwm_window_move(core.ws_list[core.cur_ws].win_list[i].win, slave_x, slave_y);
-      tfwm_window_resize(core.ws_list[core.cur_ws].win_list[i].win, slave_width,
+      core.ws_list[wsid].win_list[i].x = slave_x;
+      core.ws_list[wsid].win_list[i].y = slave_y;
+      core.ws_list[wsid].win_list[i].width = slave_width;
+      core.ws_list[wsid].win_list[i].height = slave_height;
+      tfwm_window_move(core.ws_list[wsid].win_list[i].win, slave_x, slave_y);
+      tfwm_window_resize(core.ws_list[wsid].win_list[i].win, slave_width,
                          slave_height);
-      tfwm_window_color(core.ws_list[core.cur_ws].win_list[i].win,
-                        TFWM_BORDER_INACTIVE);
+      tfwm_window_color(core.ws_list[wsid].win_list[i].win, TFWM_BORDER_INACTIVE);
       slave_y += (slave_height + (TFWM_BORDER_WIDTH * 2));
     }
   }
 }
 
-static void tfwm_layout_apply_window(void) {
-  if (core.ws_list[core.cur_ws].win_len == 0) {
+static void tfwm_layout_apply_window(uint32_t wsid) {
+  if (core.ws_list[wsid].win_len == 0) {
     return;
   }
 
@@ -581,33 +604,33 @@ static void tfwm_layout_apply_window(void) {
   int width = core.screen->width_in_pixels - (TFWM_BORDER_WIDTH * 2);
   int height =
       core.screen->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
-  int last_id = core.ws_list[core.cur_ws].win_len - 1;
+  int last_id = core.ws_list[wsid].win_len - 1;
 
   for (int i = last_id; i >= 0; i--) {
-    core.ws_list[core.cur_ws].win_list[i].x = x;
-    core.ws_list[core.cur_ws].win_list[i].y = y;
-    core.ws_list[core.cur_ws].win_list[i].width = width;
-    core.ws_list[core.cur_ws].win_list[i].height = height;
-    tfwm_window_move(core.ws_list[core.cur_ws].win_list[i].win, x, y);
-    tfwm_window_resize(core.ws_list[core.cur_ws].win_list[i].win, width, height);
-    if (core.ws_list[core.cur_ws].win_list[i].win == core.window) {
-      tfwm_window_raise(core.ws_list[core.cur_ws].win_list[i].win);
+    core.ws_list[wsid].win_list[i].x = x;
+    core.ws_list[wsid].win_list[i].y = y;
+    core.ws_list[wsid].win_list[i].width = width;
+    core.ws_list[wsid].win_list[i].height = height;
+    tfwm_window_move(core.ws_list[wsid].win_list[i].win, x, y);
+    tfwm_window_resize(core.ws_list[wsid].win_list[i].win, width, height);
+    if (core.ws_list[wsid].win_list[i].win == core.window) {
+      tfwm_window_raise(core.ws_list[wsid].win_list[i].win);
     }
   }
 }
 
-static void tfwm_layout_update(void) {
-  if (core.ws_list[core.cur_ws].layout == TFWM_LAYOUT_FLOATING) {
+static void tfwm_layout_update(uint32_t wsid) {
+  if (core.ws_list[wsid].layout == TFWM_LAYOUT_FLOATING) {
     return;
-  } else if (core.ws_list[core.cur_ws].layout == TFWM_LAYOUT_WINDOW) {
-    tfwm_layout_apply_window();
-  } else if (core.ws_list[core.cur_ws].layout == TFWM_LAYOUT_TILING) {
-    if (core.ws_list[core.cur_ws].win_len == 1) {
-      tfwm_layout_apply_window();
+  } else if (core.ws_list[wsid].layout == TFWM_LAYOUT_WINDOW) {
+    tfwm_layout_apply_window(wsid);
+  } else if (core.ws_list[wsid].layout == TFWM_LAYOUT_TILING) {
+    if (core.ws_list[wsid].win_len == 1) {
+      tfwm_layout_apply_window(wsid);
       return;
     }
 
-    tfwm_layout_apply_tiling();
+    tfwm_layout_apply_tiling(wsid);
   }
 }
 
@@ -655,9 +678,9 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
   char *wmc = tfwm_util_window_class(e->window);
   w.class = malloc(strlen(wmc) * sizeof(char));
   strcpy(w.class, wmc);
-  tfwm_workspace_window_append(w);
+  tfwm_workspace_window_append(core.cur_ws, w);
   tfwm_window_focus(e->window);
-  tfwm_layout_update();
+  tfwm_layout_update(core.cur_ws);
   tfwm_util_redraw_bar();
 }
 
@@ -955,6 +978,7 @@ static void tfwm_init(void) {
     if (keycode != NULL) {
       xcb_grab_key(core.conn, 1, core.screen->root, cfg_keybinds[i].mod, *keycode,
                    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+      free(keycode);
     }
   }
   xcb_flush(core.conn);
@@ -1017,7 +1041,7 @@ static void tfwm_init(void) {
 }
 
 int main(int argc, char *argv[]) {
-  core = (tfwm_xcb_t){};
+  core = (tfwm_xcb_t){0};
 
   if ((argc == 2) && (strcmp("-v", argv[1]) == 0)) {
     printf("tfwm-0.0.1, Copyright (c) 2024 Raihan Rahardyan, MIT License\n");

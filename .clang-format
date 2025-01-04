@@ -1,5 +1,4 @@
 BasedOnStyle: google
-AlignArrayOfStructures: Left
 AlignOperands: Align
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: None
