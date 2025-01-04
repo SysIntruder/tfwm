@@ -237,7 +237,7 @@ void tfwm_window_prev(char **cmd) {
     return;
   }
 
-  if ((wid - 1) < 0) {
+  if (0 == wid) {
     tfwm_window_focus(core.ws_list[core.cur_ws]
                           .win_list[core.ws_list[core.cur_ws].win_len - 1]
                           .win);
@@ -352,7 +352,7 @@ void tfwm_workspace_next(char **cmd) {
 }
 
 void tfwm_workspace_prev(char **cmd) {
-  if ((core.cur_ws - 1) < 0) {
+  if (0 == core.cur_ws) {
     core.prv_ws = core.cur_ws;
     core.cur_ws = core.ws_len - 1;
   } else {
