@@ -47,15 +47,14 @@ static const int TFWM_FONT_HEIGHT = 13;
 
 static const int TFWM_BAR_HEIGHT = TFWM_FONT_HEIGHT + 2;
 static const char *TFWM_BAR_SEPARATOR = " ";
-static const uint32_t TFWM_BAR_FG = WHITE;
-static const uint32_t TFWM_BAR_BG = BLACK;
-static const uint32_t TFWM_BAR_FG_ACTIVE = BLACK;
-static const uint32_t TFWM_BAR_BG_ACTIVE = WHITE;
+static const uint32_t TFWM_BAR_FOREGROUND = WHITE;
+static const uint32_t TFWM_BAR_BACKGROUND = BLACK;
+static const uint32_t TFWM_BAR_FOREGROUND_ACTIVE = BLACK;
+static const uint32_t TFWM_BAR_BACKGROUND_ACTIVE = WHITE;
 
 /* ======================== WORKSPACES ======================= */
 
-static const char *cfg_workspace_list[] = {"1", "2", "3", "4", "5",
-                                           "6", "7", "8", "9"};
+static const char *cfg_workspace[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
 static const tfwm_layout_t cfg_layout[] = {
     {TFWM_LAYOUT_WINDOW, "[W]"},
     {TFWM_LAYOUT_TILING, "[T]"},

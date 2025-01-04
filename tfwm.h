@@ -22,16 +22,16 @@ typedef struct {
   uint8_t is_fullscreen;
   int x;
   int y;
-  int width;
-  int height;
-  int border;
+  int w;
+  int h;
+  int b;
   xcb_window_t win;
   char *class;
 } tfwm_window_t;
 
 typedef struct {
   uint16_t layout;
-  char *symbol;
+  char *sym;
 } tfwm_layout_t;
 
 typedef struct {
@@ -57,15 +57,15 @@ typedef struct {
 typedef struct {
   xcb_connection_t *conn;
   xcb_screen_t *screen;
-  xcb_window_t window;
+  xcb_window_t win;
   xcb_window_t bar;
   xcb_font_t font;
   xcb_gcontext_t gc_active;
   xcb_gcontext_t gc_inactive;
-  int bar_x_left;
-  int bar_x_right;
-  int ptr_x_post;
-  int ptr_y_pos;
+  int bar_left;
+  int bar_right;
+  int ptr_x;
+  int ptr_y;
   int exit;
   uint32_t cur_btn;
   uint32_t cur_win;
@@ -113,9 +113,8 @@ static void tfwm_window_raise(xcb_window_t window);
 static void tfwm_window_focus(xcb_window_t window);
 static void tfwm_window_color(xcb_window_t window, uint32_t color);
 static void tfwm_window_move(xcb_window_t window, int x, int y);
-static void tfwm_window_resize(xcb_window_t window, int width, int height);
-static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int width,
-                                 int height);
+static void tfwm_window_resize(xcb_window_t window, int w, int h);
+static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int w, int h);
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
