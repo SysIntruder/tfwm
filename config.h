@@ -38,7 +38,7 @@ static const uint32_t TFWM_BORDER_WIDTH = 1;
 static const uint32_t TFWM_BORDER_ACTIVE = WHITE;
 static const uint32_t TFWM_BORDER_INACTIVE = GRAY;
 
-static const double TFWM_TILE_MASTER_RATIO = 50.0;
+static const double TFWM_TILE_MASTER = 50.0;
 
 /* =========================== BAR =========================== */
 

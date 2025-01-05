@@ -6,7 +6,7 @@
 
 /* ========================= SYS CFG ========================= */
 
-static const int TFWM_DEFAULT_WS_WIN_ALLOC = 5;
+static const int TFWM_WIN_LIST_ALLOC = 5;
 
 /* ========================== ENUMS ========================== */
 
@@ -83,8 +83,6 @@ static xcb_keysym_t tfwm_util_keysym(xcb_keycode_t keycode);
 static xcb_cursor_t tfwm_util_cursor(char *name);
 static char *tfwm_util_window_class(xcb_window_t window);
 static int tfwm_util_text_width(char *text);
-static void tfwm_util_find_workspace(char *name, uint32_t *wsid, uint8_t *found);
-static void tfwm_util_redraw_bar(void);
 static void tfwm_util_cleanup(void);
 
 /* ========================= COMMAND ========================= */
@@ -118,8 +116,8 @@ static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int w, int h
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
-static void tfwm_workspace_remap(void);
-
+static void tfwm_workspace_window_unmap(uint32_t wsid);
+static void tfwm_workspace_window_map(uint32_t wsid);
 static void tfwm_workspace_window_malloc(uint32_t wsid);
 static void tfwm_workspace_window_realloc(uint32_t wsid);
 static void tfwm_workspace_window_append(uint32_t wsid, tfwm_window_t window);
