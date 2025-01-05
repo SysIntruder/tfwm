@@ -78,27 +78,26 @@ static char *tfwm_util_window_class(xcb_window_t window) {
     return NULL;
   }
   xcb_atom_t a = r->atom;
-  free(r);
 
   xcb_get_property_reply_t *pr = xcb_get_property_reply(
       core.conn, xcb_get_property(core.conn, 0, window, a, XCB_ATOM_STRING, 0, 250),
       NULL);
   if (!pr) {
+    free(r);
     return NULL;
   }
   if (xcb_get_property_value_length(pr) == 0) {
+    free(r);
     free(pr);
     return NULL;
   }
 
   char *class = (char *)xcb_get_property_value(pr);
   class = class + strlen(class) + 1;
+
+  free(r);
   free(pr);
-  if (!class) {
-    return "-";
-  } else {
-    return class;
-  }
+  return class;
 }
 
 static int tfwm_util_text_width(char *text) {
@@ -110,12 +109,13 @@ static int tfwm_util_text_width(char *text) {
   }
 
   xcb_query_text_extents_reply_t *r = xcb_query_text_extents_reply(
-      core.conn, xcb_query_text_extents(core.conn, core.font, n, b), 0);
+      core.conn, xcb_query_text_extents(core.conn, core.font, n, b), NULL);
   if (!r) {
     return 0;
   }
 
   int w = r->overall_width;
+
   free(r);
   return w;
 }
@@ -674,8 +674,7 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
                            XCB_CONFIG_WINDOW_BORDER_WIDTH,
                        vals);
   uint32_t attrvals[1] = {XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE};
-  xcb_change_window_attributes_checked(core.conn, e->window, XCB_CW_EVENT_MASK,
-                                       attrvals);
+  xcb_change_window_attributes(core.conn, e->window, XCB_CW_EVENT_MASK, attrvals);
   xcb_map_window(core.conn, e->window);
   xcb_flush(core.conn);
 
@@ -732,11 +731,14 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
   xcb_get_geometry_reply_t *geo =
       xcb_get_geometry_reply(core.conn, xcb_get_geometry(core.conn, core.win), NULL);
   if (!geo) {
-    goto clean_point;
+    free(point);
+    return;
   }
 
   if ((uint32_t)(BTN_LEFT) == core.cur_btn) {
     if ((core.ptr_x == point->root_x) && (core.ptr_y == point->root_y)) {
+      free(point);
+      free(geo);
       return;
     }
 
@@ -747,6 +749,8 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
     tfwm_window_move(core.win, x, y);
   } else if ((uint32_t)(BTN_RIGHT) == core.cur_btn) {
     if ((point->root_x <= geo->x) || (point->root_y <= geo->y)) {
+      free(point);
+      free(geo);
       return;
     }
 
@@ -757,9 +761,9 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
     tfwm_window_resize(core.win, w, h);
   }
 
-  free(geo);
-clean_point:
   free(point);
+  free(geo);
+  return;
 }
 
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event) {
@@ -800,6 +804,7 @@ void tfwm_handle_button_release(xcb_generic_event_t *event) {
   xcb_ungrab_pointer(core.conn, XCB_CURRENT_TIME);
 
   free(geo);
+  return;
 }
 
 static int tfwm_handle_event(void) {
@@ -980,8 +985,8 @@ static void tfwm_init(void) {
       XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_STRUCTURE_NOTIFY |
           XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE,
       cursor};
-  xcb_change_window_attributes_checked(core.conn, core.screen->root,
-                                       XCB_CW_EVENT_MASK | XCB_CW_CURSOR, vals);
+  xcb_change_window_attributes(core.conn, core.screen->root,
+                               XCB_CW_EVENT_MASK | XCB_CW_CURSOR, vals);
 
   xcb_ungrab_key(core.conn, XCB_GRAB_ANY, core.screen->root, XCB_MOD_MASK_ANY);
   for (int i = 0; i < sizeof(cfg_keybinds) / sizeof(*cfg_keybinds); i++) {
