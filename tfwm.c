@@ -20,10 +20,9 @@ static void tfwm_util_log(char *log, int exit) {
   if (!home) {
     return;
   }
+  char *path = malloc(strlen(home) + strlen(TFWM_LOG_FILE) + 2);
+  sprintf(path, "%s/%s", home, TFWM_LOG_FILE);
 
-  size_t path_n = strlen(home) + strlen(TFWM_LOG_FILE) + 2;
-  char *path = malloc(path_n);
-  snprintf(path, path_n, "%s/%s", home, TFWM_LOG_FILE);
   FILE *file;
   if (access(path, F_OK) != 0) {
     file = fopen(path, "w");
@@ -36,11 +35,11 @@ static void tfwm_util_log(char *log, int exit) {
   }
   free(path);
 
-  size_t n = strlen(log);
-  char timestamp[20];
   time_t t = time(NULL);
   struct tm *now = localtime(&t);
+  char timestamp[20];
   strftime(timestamp, 20, "%Y-%m-%d %H:%M:%S", now);
+
   fprintf(file, "[%s] %s\n", timestamp, log);
   fclose(file);
   core.exit = exit;
@@ -78,27 +77,25 @@ static char *tfwm_util_window_class(xcb_window_t window) {
     return NULL;
   }
   xcb_atom_t a = r->atom;
+  free(r);
 
-  xcb_get_property_reply_t *pr = xcb_get_property_reply(
+  xcb_get_property_reply_t *p = xcb_get_property_reply(
       core.conn,
       xcb_get_property(core.conn, 0, window, a, XCB_ATOM_STRING, 0, 250),
       NULL
   );
-  if (!pr) {
-    free(r);
+  if (!p) {
     return NULL;
   }
-  if (xcb_get_property_value_length(pr) == 0) {
-    free(r);
-    free(pr);
+  if (xcb_get_property_value_length(p) == 0) {
+    free(p);
     return NULL;
   }
 
-  char *class = (char *)xcb_get_property_value(pr);
+  char *class = (char *)xcb_get_property_value(p);
+  free(p);
   class = class + strlen(class) + 1;
 
-  free(r);
-  free(pr);
   return class;
 }
 
@@ -118,8 +115,8 @@ static int tfwm_util_text_width(char *text) {
   }
 
   int w = r->overall_width;
-
   free(r);
+
   return w;
 }
 
@@ -154,7 +151,6 @@ static void tfwm_util_cleanup(void) {
 void tfwm_exit(char **cmd) {
   if (core.conn) {
     tfwm_util_cleanup();
-
     xcb_disconnect(core.conn);
   }
 }
@@ -165,7 +161,6 @@ void tfwm_window_spawn(char **cmd) {
     if (fork() != 0) {
       _exit(0);
     }
-
     execvp((char *)cmd[0], (char **)cmd);
     _exit(0);
   }
@@ -182,28 +177,27 @@ void tfwm_window_kill(char **cmd) {
 
   xcb_window_t target = core.win;
   tfwm_workspace_window_pop(core.cur_win);
-  if (core.ws_list[core.cur_ws].win_len == 0) {
+  tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
+  if (ws->win_len == 0) {
     tfwm_window_focus(core.screen->root);
-  } else if ((core.cur_win + 1) >= core.ws_list[core.cur_ws].win_len) {
-    tfwm_window_focus(
-        core.ws_list[core.cur_ws].win_list[core.ws_list[core.cur_ws].win_len - 1].win
-    );
-  } else if ((core.cur_win + 1) < core.ws_list[core.cur_ws].win_len) {
-    tfwm_window_focus(core.ws_list[core.cur_ws].win_list[core.cur_win].win);
+  } else if ((core.cur_win + 1) >= ws->win_len) {
+    tfwm_window_focus(ws->win_list[ws->win_len - 1].win);
+  } else if ((core.cur_win + 1) < ws->win_len) {
+    tfwm_window_focus(ws->win_list[core.cur_win].win);
   }
-  if (core.ws_list[core.cur_ws].layout == TFWM_LAYOUT_TILING) {
+  if (TFWM_LAYOUT_TILING == ws->layout) {
     tfwm_layout_apply_tiling(core.cur_ws);
   }
-
   xcb_flush(core.conn);
   xcb_kill_client(core.conn, target);
 }
 
 void tfwm_window_next(char **cmd) {
+  tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
   uint32_t wid;
   uint8_t ok;
-  for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
-    if (core.ws_list[core.cur_ws].win_list[i].win == core.win) {
+  for (uint32_t i = 0; i < ws->win_len; i++) {
+    if (ws->win_list[i].win == core.win) {
       wid = i;
       ok = 1;
       break;
@@ -213,18 +207,19 @@ void tfwm_window_next(char **cmd) {
     return;
   }
 
-  if ((wid + 1) == core.ws_list[core.cur_ws].win_len) {
-    tfwm_window_focus(core.ws_list[core.cur_ws].win_list[0].win);
+  if ((wid + 1) == ws->win_len) {
+    tfwm_window_focus(ws->win_list[0].win);
   } else {
-    tfwm_window_focus(core.ws_list[core.cur_ws].win_list[wid + 1].win);
+    tfwm_window_focus(ws->win_list[wid + 1].win);
   }
 }
 
 void tfwm_window_prev(char **cmd) {
+  tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
   uint32_t wid;
   uint8_t ok;
-  for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
-    if (core.ws_list[core.cur_ws].win_list[i].win == core.win) {
+  for (uint32_t i = 0; i < ws->win_len; i++) {
+    if (ws->win_list[i].win == core.win) {
       wid = i;
       ok = 1;
       break;
@@ -235,11 +230,9 @@ void tfwm_window_prev(char **cmd) {
   }
 
   if (0 == wid) {
-    tfwm_window_focus(
-        core.ws_list[core.cur_ws].win_list[core.ws_list[core.cur_ws].win_len - 1].win
-    );
+    tfwm_window_focus(ws->win_list[ws->win_len - 1].win);
   } else {
-    tfwm_window_focus(core.ws_list[core.cur_ws].win_list[wid - 1].win);
+    tfwm_window_focus(ws->win_list[wid - 1].win);
   }
 }
 
@@ -248,10 +241,11 @@ void tfwm_window_swap_last(char **cmd) {
     return;
   }
 
+  tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
   uint32_t wid;
   uint8_t ok;
-  for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
-    if (core.ws_list[core.cur_ws].win_list[i].win == core.win) {
+  for (uint32_t i = 0; i < ws->win_len; i++) {
+    if (ws->win_list[i].win == core.win) {
       wid = i;
       ok = 1;
       break;
@@ -260,18 +254,18 @@ void tfwm_window_swap_last(char **cmd) {
   if (0 == ok) {
     return;
   }
-  uint32_t last_id = core.ws_list[core.cur_ws].win_len - 1;
+  uint32_t last_id = ws->win_len - 1;
   if ((wid) == last_id) {
     return;
   }
-  xcb_window_t last = core.ws_list[core.cur_ws].win_list[last_id].win;
+  xcb_window_t last = ws->win_list[last_id].win;
   if (core.win == last) {
     return;
   }
 
-  core.ws_list[core.cur_ws].win_list[last_id].win = core.win;
-  core.ws_list[core.cur_ws].win_list[wid].win = last;
-  if (core.ws_list[core.cur_ws].layout == TFWM_LAYOUT_TILING) {
+  ws->win_list[last_id].win = core.win;
+  ws->win_list[wid].win = last;
+  if (TFWM_LAYOUT_TILING == ws->layout) {
     tfwm_layout_apply_tiling(core.cur_ws);
   }
   tfwm_window_focus(core.win);
@@ -289,17 +283,18 @@ void tfwm_window_fullscreen(char **cmd) {
   int y = 0 - TFWM_BORDER_WIDTH;
   int w = core.screen->width_in_pixels;
   int h = core.screen->height_in_pixels;
+  tfwm_window_t *win = &core.ws_list[core.cur_ws].win_list[core.cur_win];
 
-  if (1 == core.ws_list[core.cur_ws].win_list[core.cur_win].is_fullscreen) {
-    x = core.ws_list[core.cur_ws].win_list[core.cur_win].x;
-    y = core.ws_list[core.cur_ws].win_list[core.cur_win].y;
-    w = core.ws_list[core.cur_ws].win_list[core.cur_win].w;
-    h = core.ws_list[core.cur_ws].win_list[core.cur_win].h;
+  if (1 == win->is_fullscreen) {
+    x = win->x;
+    y = win->y;
+    w = win->w;
+    h = win->h;
   }
 
   tfwm_window_move(core.win, x, y);
   tfwm_window_resize(core.win, w, h);
-  core.ws_list[core.cur_ws].win_list[core.cur_win].is_fullscreen ^= 1;
+  win->is_fullscreen ^= 1;
 }
 
 void tfwm_window_to_workspace(char **cmd) {
@@ -435,8 +430,9 @@ static void tfwm_window_focus(xcb_window_t window) {
     core.win = window;
     core.cur_win = 0;
   } else {
-    for (uint32_t i = 0; i < core.ws_list[core.cur_ws].win_len; i++) {
-      if (core.ws_list[core.cur_ws].win_list[i].win == window) {
+    tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
+    for (uint32_t i = 0; i < ws->win_len; i++) {
+      if (ws->win_list[i].win == window) {
         core.win = window;
         core.cur_win = i;
         break;
@@ -490,137 +486,141 @@ static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int w, int h
     return;
   }
 
-  core.ws_list[core.cur_ws].win_list[core.cur_win].x = x;
-  core.ws_list[core.cur_ws].win_list[core.cur_win].y = y;
-  core.ws_list[core.cur_ws].win_list[core.cur_win].w = w;
-  core.ws_list[core.cur_ws].win_list[core.cur_win].h = h;
+  tfwm_window_t *win = &core.ws_list[core.cur_ws].win_list[core.cur_win];
+  win->x = x;
+  win->y = y;
+  win->w = w;
+  win->h = h;
 }
 
 /* =================== WORKSPACE FUNCTION ==================== */
 
 static void tfwm_workspace_window_unmap(uint32_t wsid) {
-  for (uint32_t i = 0; i < core.ws_list[wsid].win_len; i++) {
-    xcb_unmap_window(core.conn, core.ws_list[wsid].win_list[i].win);
-    tfwm_window_color(core.ws_list[wsid].win_list[i].win, TFWM_BORDER_INACTIVE);
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  for (uint32_t i = 0; i < ws->win_len; i++) {
+    xcb_unmap_window(core.conn, ws->win_list[i].win);
+    tfwm_window_color(ws->win_list[i].win, TFWM_BORDER_INACTIVE);
   }
 }
 
 static void tfwm_workspace_window_map(uint32_t wsid) {
-  if (0 == core.ws_list[wsid].win_len) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (0 == ws->win_len) {
     tfwm_window_focus(core.screen->root);
     return;
   }
 
-  for (uint32_t i = 0; i < core.ws_list[wsid].win_len; i++) {
-    xcb_map_window(core.conn, core.ws_list[wsid].win_list[i].win);
-    if (i == (core.ws_list[wsid].win_len - 1)) {
-      tfwm_window_focus(core.ws_list[wsid].win_list[i].win);
+  for (uint32_t i = 0; i < ws->win_len; i++) {
+    xcb_map_window(core.conn, ws->win_list[i].win);
+    if (i == (ws->win_len - 1)) {
+      tfwm_window_focus(ws->win_list[i].win);
     } else {
-      tfwm_window_color(core.ws_list[wsid].win_list[i].win, TFWM_BORDER_INACTIVE);
+      tfwm_window_color(ws->win_list[i].win, TFWM_BORDER_INACTIVE);
     }
   }
 }
 
 static void tfwm_workspace_window_malloc(uint32_t wsid) {
-  if (core.ws_list[wsid].win_list) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (ws->win_list) {
     return;
   }
 
-  core.ws_list[wsid].win_list =
+  ws->win_list =
       (tfwm_window_t *)malloc(TFWM_WIN_LIST_ALLOC * sizeof(tfwm_window_t));
-  core.ws_list[wsid].win_cap = TFWM_WIN_LIST_ALLOC;
+  ws->win_cap = TFWM_WIN_LIST_ALLOC;
 }
 
 static void tfwm_workspace_window_realloc(uint32_t wsid) {
-  if (!core.ws_list[wsid].win_list) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (!ws->win_list) {
     return;
   }
 
   tfwm_window_t *new_win = (tfwm_window_t *)realloc(
-      core.ws_list[wsid].win_list,
-      (core.ws_list[wsid].win_cap + TFWM_WIN_LIST_ALLOC) * sizeof(tfwm_window_t)
+      ws->win_list, (ws->win_cap + TFWM_WIN_LIST_ALLOC) * sizeof(tfwm_window_t)
   );
   if (!new_win) {
     return;
   }
 
-  core.ws_list[wsid].win_list = new_win;
-  core.ws_list[wsid].win_cap += TFWM_WIN_LIST_ALLOC;
+  ws->win_list = new_win;
+  ws->win_cap += TFWM_WIN_LIST_ALLOC;
 }
 
 static void tfwm_workspace_window_append(uint32_t wsid, tfwm_window_t window) {
-  if (!core.ws_list[wsid].win_list) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (!ws->win_list) {
     tfwm_workspace_window_malloc(wsid);
-  } else if (core.ws_list[wsid].win_cap == core.ws_list[wsid].win_len) {
+  } else if (ws->win_cap == core.ws_list[wsid].win_len) {
     tfwm_workspace_window_realloc(wsid);
   }
 
-  core.ws_list[wsid].win_list[core.ws_list[wsid].win_len++] = window;
+  ws->win_list[ws->win_len++] = window;
 }
 
 static void tfwm_workspace_window_pop(uint32_t wid) {
-  if (wid < core.ws_list[core.cur_ws].win_len - 1) {
-    for (uint32_t i = wid + 1; i < core.ws_list[core.cur_ws].win_len; i++) {
-      core.ws_list[core.cur_ws].win_list[i - 1] =
-          core.ws_list[core.cur_ws].win_list[i];
+  tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
+  if (wid < ws->win_len - 1) {
+    for (uint32_t i = wid + 1; i < ws->win_len; i++) {
+      ws->win_list[i - 1] = ws->win_list[i];
     }
   }
-  core.ws_list[core.cur_ws].win_len--;
+  ws->win_len--;
 }
 
 /* ===================== LAYOUT FUNCTION ===================== */
 
 static void tfwm_layout_apply_tiling(uint32_t wsid) {
-  if (0 == core.ws_list[wsid].win_len) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (0 == ws->win_len) {
     return;
   }
-  if (1 == core.ws_list[wsid].win_len) {
+  if (1 == ws->win_len) {
     tfwm_layout_apply_window(wsid);
     return;
   }
 
-  int master_x = 0;
-  int master_y = TFWM_BAR_HEIGHT;
-  int master_w = ((TFWM_TILE_MASTER / 100.0) * core.screen->width_in_pixels) -
-                 (TFWM_BORDER_WIDTH * 2);
-  int master_h =
-      core.screen->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
-  int slave_x = master_w + (TFWM_BORDER_WIDTH * 2);
-  int slave_y = master_y;
-  int slave_w =
-      (((100.0 - TFWM_TILE_MASTER) / 100.0) * core.screen->width_in_pixels -
-       (TFWM_BORDER_WIDTH * 2));
-  int slave_h = master_h;
+  int mx = 0;
+  int my = TFWM_BAR_HEIGHT;
+  int mw = ((TFWM_TILE_MASTER / 100.0) * core.screen->width_in_pixels) -
+           (TFWM_BORDER_WIDTH * 2);
+  int mh = core.screen->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
+  int sx = mw + (TFWM_BORDER_WIDTH * 2);
+  int sy = my;
+  int sw = ((100.0 - TFWM_TILE_MASTER) / 100.0) * core.screen->width_in_pixels -
+           (TFWM_BORDER_WIDTH * 2);
+  int sh = mh;
 
-  if (core.ws_list[wsid].win_len > 2) {
-    slave_h = ((core.screen->height_in_pixels - TFWM_BAR_HEIGHT) /
-               (core.ws_list[wsid].win_len - 1)) -
-              (TFWM_BORDER_WIDTH * 2);
+  if (ws->win_len > 2) {
+    sh = ((core.screen->height_in_pixels - TFWM_BAR_HEIGHT) / (ws->win_len - 1)) -
+         (TFWM_BORDER_WIDTH * 2);
   }
   int last_id = core.ws_list[wsid].win_len - 1;
 
   for (int i = last_id; i >= 0; i--) {
     if (i == last_id) {
-      core.ws_list[wsid].win_list[i].x = master_x;
-      core.ws_list[wsid].win_list[i].y = master_y;
-      core.ws_list[wsid].win_list[i].w = master_w;
-      core.ws_list[wsid].win_list[i].h = master_h;
-      tfwm_window_move(core.ws_list[wsid].win_list[i].win, master_x, master_y);
-      tfwm_window_resize(core.ws_list[wsid].win_list[i].win, master_w, master_h);
+      ws->win_list[i].x = mx;
+      ws->win_list[i].y = my;
+      ws->win_list[i].w = mw;
+      ws->win_list[i].h = mh;
+      tfwm_window_move(ws->win_list[i].win, mx, my);
+      tfwm_window_resize(ws->win_list[i].win, mw, mh);
     } else {
-      core.ws_list[wsid].win_list[i].x = slave_x;
-      core.ws_list[wsid].win_list[i].y = slave_y;
-      core.ws_list[wsid].win_list[i].w = slave_w;
-      core.ws_list[wsid].win_list[i].h = slave_h;
-      tfwm_window_move(core.ws_list[wsid].win_list[i].win, slave_x, slave_y);
-      tfwm_window_resize(core.ws_list[wsid].win_list[i].win, slave_w, slave_h);
-      slave_y += (slave_h + (TFWM_BORDER_WIDTH * 2));
+      ws->win_list[i].x = sx;
+      ws->win_list[i].y = sy;
+      ws->win_list[i].w = sw;
+      ws->win_list[i].h = sh;
+      tfwm_window_move(ws->win_list[i].win, sx, sy);
+      tfwm_window_resize(ws->win_list[i].win, sw, sh);
+      sy += (sh + (TFWM_BORDER_WIDTH * 2));
     }
   }
 }
 
 static void tfwm_layout_apply_window(uint32_t wsid) {
-  if (0 == core.ws_list[wsid].win_len) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (0 == ws->win_len) {
     return;
   }
 
@@ -628,24 +628,25 @@ static void tfwm_layout_apply_window(uint32_t wsid) {
   int y = TFWM_BAR_HEIGHT;
   int w = core.screen->width_in_pixels - (TFWM_BORDER_WIDTH * 2);
   int h = core.screen->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
-  int last_id = core.ws_list[wsid].win_len - 1;
+  int last_id = ws->win_len - 1;
 
   for (int i = last_id; i >= 0; i--) {
-    core.ws_list[wsid].win_list[i].x = x;
-    core.ws_list[wsid].win_list[i].y = y;
-    core.ws_list[wsid].win_list[i].w = w;
-    core.ws_list[wsid].win_list[i].h = h;
-    tfwm_window_move(core.ws_list[wsid].win_list[i].win, x, y);
-    tfwm_window_resize(core.ws_list[wsid].win_list[i].win, w, h);
+    ws->win_list[i].x = x;
+    ws->win_list[i].y = y;
+    ws->win_list[i].w = w;
+    ws->win_list[i].h = h;
+    tfwm_window_move(ws->win_list[i].win, x, y);
+    tfwm_window_resize(ws->win_list[i].win, w, h);
   }
 }
 
 static void tfwm_layout_update(uint32_t wsid) {
-  if (TFWM_LAYOUT_FLOATING == core.ws_list[wsid].layout) {
+  tfwm_workspace_t *ws = &core.ws_list[wsid];
+  if (TFWM_LAYOUT_FLOATING == ws->layout) {
     return;
-  } else if (TFWM_LAYOUT_WINDOW == core.ws_list[wsid].layout) {
+  } else if (TFWM_LAYOUT_WINDOW == ws->layout) {
     tfwm_layout_apply_window(wsid);
-  } else if (TFWM_LAYOUT_TILING == core.ws_list[wsid].layout) {
+  } else if (TFWM_LAYOUT_TILING == ws->layout) {
     tfwm_layout_apply_tiling(wsid);
   }
 }
@@ -695,6 +696,7 @@ void tfwm_handle_map_request(xcb_generic_event_t *event) {
   char *wmc = tfwm_util_window_class(e->window);
   w.class = malloc(strlen(wmc) * sizeof(char));
   strcpy(w.class, wmc);
+
   tfwm_workspace_window_append(core.cur_ws, w);
   tfwm_layout_update(core.cur_ws);
   tfwm_workspace_window_map(core.cur_ws);
@@ -771,7 +773,6 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
 
   free(point);
   free(geo);
-  return;
 }
 
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event) {
@@ -816,9 +817,9 @@ void tfwm_handle_button_release(xcb_generic_event_t *event) {
   }
 
   tfwm_window_set_attr(core.win, geo->x, geo->y, geo->width, geo->height);
+  free(geo);
   xcb_ungrab_pointer(core.conn, XCB_CURRENT_TIME);
 
-  free(geo);
   return;
 }
 
@@ -900,7 +901,8 @@ static void tfwm_bar_module_window_tabs() {
   if ((core.cur_win) == core.screen->root) {
     return;
   }
-  if (0 == core.ws_list[core.cur_ws].win_len) {
+  tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
+  if (0 == ws->win_len) {
     return;
   }
 
@@ -910,10 +912,8 @@ static void tfwm_bar_module_window_tabs() {
   int n_sign_width = tfwm_util_text_width(n_sign);
   int sep_width = tfwm_util_text_width(" ");
   int max_width = core.bar_right - (core.bar_left + p_sign_width + n_sign_width);
-  int n =
-      tfwm_util_text_width(core.ws_list[core.cur_ws].win_list[core.cur_win].class) +
-      (2 * sep_width);
-  int last = core.ws_list[core.cur_ws].win_len - 1;
+  int n = tfwm_util_text_width(ws->win_list[core.cur_win].class) + (2 * sep_width);
+  int last = ws->win_len - 1;
   int head = core.cur_win > 0 ? core.cur_win - 1 : 0;
   int tail = core.cur_win < last ? core.cur_win + 1 : last;
   int head_done = core.cur_win == head ? 1 : 0;
@@ -921,8 +921,7 @@ static void tfwm_bar_module_window_tabs() {
 
   while (n < max_width) {
     if (head >= 0 && !head_done) {
-      n += tfwm_util_text_width(core.ws_list[core.cur_ws].win_list[head].class) +
-           (2 * sep_width);
+      n += tfwm_util_text_width(ws->win_list[head].class) + (2 * sep_width);
       if (n >= max_width) {
         tail -= !tail_done ? 1 : 0;
         break;
@@ -934,8 +933,7 @@ static void tfwm_bar_module_window_tabs() {
     }
 
     if (tail <= last && !tail_done) {
-      n += tfwm_util_text_width(core.ws_list[core.cur_ws].win_list[tail].class) +
-           (2 * sep_width);
+      n += tfwm_util_text_width(ws->win_list[tail].class) + (2 * sep_width);
       if (n >= max_width) {
         head += !head_done ? 1 : 0;
         break;
@@ -963,10 +961,10 @@ static void tfwm_bar_module_window_tabs() {
   }
 
   for (int i = head; i <= tail; i++) {
-    size_t len = strlen(core.ws_list[core.cur_ws].win_list[i].class);
+    size_t len = strlen(ws->win_list[i].class);
     char c[len + 3];
     c[0] = ' ';
-    memcpy(c + 1, core.ws_list[core.cur_ws].win_list[i].class, len);
+    memcpy(c + 1, ws->win_list[i].class, len);
     c[len + 1] = ' ';
     c[len + 2] = '\0';
     if (i == core.cur_win) {
