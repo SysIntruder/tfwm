@@ -894,6 +894,17 @@ static void tfwm_bar_module_workspace(void (*render)(xcb_gcontext_t, char *)) {
   }
 }
 
+static void tfwm_bar_module_wm_info(void (*render)(xcb_gcontext_t, char *)) {
+  size_t n1 = strlen(TFWM_NAME);
+  size_t n2 = strlen(TFWM_VERSION);
+  char s[n1 + n2 + 2];
+  memcpy(s, TFWM_NAME, n1);
+  s[n1] = '-';
+  memcpy(s + n1 + 1, TFWM_VERSION, n2);
+  s[n1 + 1 + n2] = '\0';
+  render(core.gc_inactive, s);
+}
+
 static void tfwm_bar_module_window_tabs() {
   if (0 == core.win) {
     return;
@@ -984,7 +995,7 @@ static void tfwm_bar_run() {
   tfwm_bar_module_layout(tfwm_bar_render_left);
   tfwm_bar_module_separator(tfwm_bar_render_left);
 
-  tfwm_bar_render_right(core.gc_inactive, "tfwm-0.0.1");
+  tfwm_bar_module_wm_info(tfwm_bar_render_right);
   tfwm_bar_module_separator(tfwm_bar_render_right);
 
   tfwm_bar_module_window_tabs();
@@ -993,6 +1004,75 @@ static void tfwm_bar_run() {
 }
 
 /* ========================== SETUP ========================== */
+
+static void tfwm_ewmh() {
+  xcb_window_t wid = xcb_generate_id(core.conn);
+  xcb_create_window(
+      core.conn,
+      XCB_COPY_FROM_PARENT,
+      wid,
+      core.screen->root,
+      0,
+      0,
+      1,
+      1,
+      0,
+      XCB_WINDOW_CLASS_INPUT_OUTPUT,
+      core.screen->root_visual,
+      0,
+      NULL
+  );
+
+  xcb_intern_atom_reply_t *sc = xcb_intern_atom_reply(
+      core.conn,
+      xcb_intern_atom(
+          core.conn,
+          0,
+          strlen("_NET_SUPPORTING_WM_CHECK"),
+          "_NET_SUPPORTING_WM_CHECK"
+      ),
+      NULL
+  );
+  if (!sc) {
+    return;
+  }
+  xcb_atom_t wmcheck = sc->atom;
+  free(sc);
+  xcb_change_property(
+      core.conn,
+      XCB_PROP_MODE_REPLACE,
+      core.screen->root,
+      wmcheck,
+      XCB_ATOM_WINDOW,
+      32,
+      1,
+      &wid
+  );
+  xcb_change_property(
+      core.conn, XCB_PROP_MODE_REPLACE, wid, wmcheck, XCB_ATOM_WINDOW, 32, 1, &wid
+  );
+
+  xcb_intern_atom_reply_t *wn = xcb_intern_atom_reply(
+      core.conn,
+      xcb_intern_atom(core.conn, 0, strlen("_NET_WM_NAME"), "_NET_WM_NAME"),
+      NULL
+  );
+  if (!wn) {
+    return;
+  }
+  xcb_atom_t wmname = wn->atom;
+  free(wn);
+  xcb_change_property(
+      core.conn,
+      XCB_PROP_MODE_REPLACE,
+      wid,
+      wmname,
+      XCB_ATOM_STRING,
+      8,
+      strlen(TFWM_NAME),
+      TFWM_NAME
+  );
+}
 
 static void tfwm_init(void) {
   xcb_cursor_t cursor = tfwm_util_cursor((char *)TFWM_CURSOR_DEFAULT);
@@ -1113,6 +1193,9 @@ static void tfwm_init(void) {
       XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT,
       inactive_vals
   );
+
+  tfwm_ewmh();
+  xcb_flush(core.conn);
 }
 
 int main(int argc, char *argv[]) {

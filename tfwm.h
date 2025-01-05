@@ -7,6 +7,8 @@
 /* ========================= SYS CFG ========================= */
 
 static const int TFWM_WIN_LIST_ALLOC = 5;
+static const char *TFWM_NAME = "tfwm";
+static const char *TFWM_VERSION = "0.0.1";
 
 /* ========================== ENUMS ========================== */
 
@@ -150,6 +152,7 @@ static void tfwm_bar_render_right(xcb_gcontext_t gc, char *text);
 static void tfwm_bar_module_layout(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_separator(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_workspace(void (*render)(xcb_gcontext_t, char *));
+static void tfwm_bar_module_wm_info(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_window();
 static void tfwm_bar_run();
 
@@ -171,6 +174,7 @@ static tfwm_event_handler_t event_handlers[] = {
 
 /* ========================== SETUP ========================== */
 
+static void tfwm_ewmh();
 static void tfwm_init(void);
 
 #endif  // !TFWM_H
