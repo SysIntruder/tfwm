@@ -78,10 +78,10 @@ typedef struct {
 /* ========================== UTILS ========================== */
 
 static void tfwm_util_log(char *log, int exit);
-static xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym);
-static xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode);
+static xcb_keycode_t *tfwm_util_keycodes(xcb_keysym_t keysym);
+static xcb_keysym_t tfwm_util_keysym(xcb_keycode_t keycode);
+static xcb_cursor_t tfwm_util_cursor(char *name);
 static char *tfwm_util_window_class(xcb_window_t window);
-static void tfwm_util_set_cursor(xcb_window_t window, char *name);
 static int tfwm_util_text_width(char *text);
 static void tfwm_util_find_workspace(char *name, uint32_t *wsid, uint8_t *found);
 static void tfwm_util_redraw_bar(void);

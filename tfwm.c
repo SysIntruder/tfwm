@@ -46,18 +46,28 @@ static void tfwm_util_log(char *log, int exit) {
   core.exit = exit;
 }
 
-static xcb_keycode_t *tfwm_util_get_keycodes(xcb_keysym_t keysym) {
+static xcb_keycode_t *tfwm_util_keycodes(xcb_keysym_t keysym) {
   xcb_key_symbols_t *ks = xcb_key_symbols_alloc(core.conn);
   xcb_keycode_t *keycode = (!(ks) ? NULL : xcb_key_symbols_get_keycode(ks, keysym));
   xcb_key_symbols_free(ks);
   return keycode;
 }
 
-static xcb_keysym_t tfwm_util_get_keysym(xcb_keycode_t keycode) {
+static xcb_keysym_t tfwm_util_keysym(xcb_keycode_t keycode) {
   xcb_key_symbols_t *ks = xcb_key_symbols_alloc(core.conn);
   xcb_keysym_t keysym = (!(ks) ? 0 : xcb_key_symbols_get_keysym(ks, keycode, 0));
   xcb_key_symbols_free(ks);
   return keysym;
+}
+
+static xcb_cursor_t tfwm_util_cursor(char *name) {
+  xcb_cursor_context_t *cursor_ctx;
+  if (xcb_cursor_context_new(core.conn, core.screen, &cursor_ctx) < 0) {
+    return XCB_CURSOR_NONE;
+  }
+  xcb_cursor_t cursor = xcb_cursor_load_cursor(cursor_ctx, name);
+  xcb_cursor_context_free(cursor_ctx);
+  return cursor;
 }
 
 static char *tfwm_util_window_class(xcb_window_t window) {
@@ -89,16 +99,6 @@ static char *tfwm_util_window_class(xcb_window_t window) {
   } else {
     return wm_class;
   }
-}
-
-static void tfwm_util_set_cursor(xcb_window_t win, char *name) {
-  xcb_cursor_context_t *cursor_ctx;
-  if (xcb_cursor_context_new(core.conn, core.screen, &cursor_ctx) < 0) {
-    return;
-  }
-  xcb_cursor_t cursor = xcb_cursor_load_cursor(cursor_ctx, name);
-  xcb_change_window_attributes(core.conn, win, XCB_CW_CURSOR, &cursor);
-  xcb_cursor_context_free(cursor_ctx);
 }
 
 static int tfwm_util_text_width(char *text) {
@@ -633,7 +633,7 @@ static void tfwm_layout_update(uint32_t wsid) {
 
 void tfwm_handle_keypress(xcb_generic_event_t *event) {
   xcb_key_press_event_t *e = (xcb_key_press_event_t *)event;
-  xcb_keysym_t keysym = tfwm_util_get_keysym(e->detail);
+  xcb_keysym_t keysym = tfwm_util_keysym(e->detail);
 
   for (int i = 0; i < sizeof(cfg_keybinds) / sizeof(*cfg_keybinds); i++) {
     if ((cfg_keybinds[i].keysym == keysym) && (cfg_keybinds[i].mod == e->state)) {
@@ -719,7 +719,7 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
     goto clean_point;
   }
 
-  if (core.cur_btn == (uint32_t)(BUTTON_LEFT)) {
+  if (core.cur_btn == (uint32_t)(BTN_LEFT)) {
     if ((core.ptr_x == point->root_x) && (core.ptr_y == point->root_y)) {
       return;
     }
@@ -729,7 +729,7 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
     core.ptr_x = point->root_x;
     core.ptr_y = point->root_y;
     tfwm_window_move(core.win, x, y);
-  } else if (core.cur_btn == (uint32_t)(BUTTON_RIGHT)) {
+  } else if (core.cur_btn == (uint32_t)(BTN_RIGHT)) {
     if ((point->root_x <= geo->x) || (point->root_y <= geo->y)) {
       return;
     }
@@ -758,19 +758,19 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
   core.ptr_y = e->event_y;
   tfwm_window_focus(core.win);
 
-  core.cur_btn = ((e->detail == BUTTON_LEFT) ? BUTTON_LEFT
-                                             : ((core.win != 0) ? BUTTON_RIGHT : 0));
+  core.cur_btn =
+      ((e->detail == BTN_LEFT) ? BTN_LEFT : ((core.win != 0) ? BTN_RIGHT : 0));
+  xcb_cursor_t cursor = XCB_NONE;
+  if (core.cur_btn == (uint32_t)BTN_LEFT) {
+    cursor = tfwm_util_cursor((char *)TFWM_CURSOR_MOVE);
+  } else if (core.cur_btn == (uint32_t)BTN_RIGHT) {
+    cursor = tfwm_util_cursor((char *)TFWM_CURSOR_RESIZE);
+  }
   xcb_grab_pointer(core.conn, 0, core.screen->root,
                    XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_BUTTON_MOTION |
                        XCB_EVENT_MASK_POINTER_MOTION_HINT,
                    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, core.screen->root,
-                   XCB_NONE, XCB_CURRENT_TIME);
-
-  if (core.cur_btn == (uint32_t)BUTTON_LEFT) {
-    tfwm_util_set_cursor(core.win, (char *)TFWM_CURSOR_MOVE);
-  } else if (core.cur_btn == (uint32_t)BUTTON_RIGHT) {
-    tfwm_util_set_cursor(core.win, (char *)TFWM_CURSOR_RESIZE);
-  }
+                   cursor, XCB_CURRENT_TIME);
 }
 
 void tfwm_handle_button_release(xcb_generic_event_t *event) {
@@ -782,7 +782,6 @@ void tfwm_handle_button_release(xcb_generic_event_t *event) {
 
   tfwm_window_set_attr(core.win, geo->x, geo->y, geo->width, geo->height);
   xcb_ungrab_pointer(core.conn, XCB_CURRENT_TIME);
-  tfwm_util_set_cursor(core.win, (char *)TFWM_CURSOR_DEFAULT);
 
   free(geo);
 }
@@ -960,15 +959,17 @@ static void tfwm_bar_run() {
 /* ========================== SETUP ========================== */
 
 static void tfwm_init(void) {
-  uint32_t vals[1] = {
+  xcb_cursor_t cursor = tfwm_util_cursor((char *)TFWM_CURSOR_DEFAULT);
+  uint32_t vals[2] = {
       XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_STRUCTURE_NOTIFY |
-      XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE};
+          XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE,
+      cursor};
   xcb_change_window_attributes_checked(core.conn, core.screen->root,
-                                       XCB_CW_EVENT_MASK, vals);
+                                       XCB_CW_EVENT_MASK | XCB_CW_CURSOR, vals);
 
   xcb_ungrab_key(core.conn, XCB_GRAB_ANY, core.screen->root, XCB_MOD_MASK_ANY);
   for (int i = 0; i < sizeof(cfg_keybinds) / sizeof(*cfg_keybinds); i++) {
-    xcb_keycode_t *keycode = tfwm_util_get_keycodes(cfg_keybinds[i].keysym);
+    xcb_keycode_t *keycode = tfwm_util_keycodes(cfg_keybinds[i].keysym);
     if (keycode != NULL) {
       xcb_grab_key(core.conn, 1, core.screen->root, cfg_keybinds[i].mod, *keycode,
                    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
@@ -980,12 +981,11 @@ static void tfwm_init(void) {
   xcb_grab_button(core.conn, 0, core.screen->root,
                   XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, core.screen->root,
-                  XCB_NONE, BUTTON_LEFT, MOD_KEY);
+                  XCB_NONE, BTN_LEFT, MOD_KEY);
   xcb_grab_button(core.conn, 0, core.screen->root,
                   XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
                   XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, core.screen->root,
-                  XCB_NONE, BUTTON_RIGHT, MOD_KEY);
-  tfwm_util_set_cursor(core.screen->root, (char *)TFWM_CURSOR_DEFAULT);
+                  XCB_NONE, BTN_RIGHT, MOD_KEY);
   xcb_flush(core.conn);
 
   core.ws_len = sizeof(cfg_workspace) / sizeof(*cfg_workspace);

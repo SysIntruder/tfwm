@@ -9,8 +9,8 @@
 #define MOD_SHIFT XCB_MOD_MASK_SHIFT
 #define MOD_CTRL XCB_MOD_MASK_SHIFT
 
-#define BUTTON_LEFT 1
-#define BUTTON_RIGHT 3
+#define BTN_LEFT 1
+#define BTN_RIGHT 3
 
 /* ========================== CURSOR ========================= */
 
