@@ -23,3 +23,11 @@ uninstall:
 	rm -f $(BINDIR)/tfwm
 
 .PHONY: install tfwm clean uninstall
+
+# o = tfwm.o
+
+# tfwm: $(o)
+# 	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) $^ -o tfwm $(LDLIBS)
+
+# $(o): %.o: %.c
+# 	$(CC) -c $^ -o $@
