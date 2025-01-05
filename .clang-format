@@ -1,11 +1,18 @@
 BasedOnStyle: google
+AlignAfterOpenBracket: BlockIndent
 AlignOperands: Align
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
+BinPackArguments: false
 ColumnLimit: 85
 IndentWidth: 2
-SortIncludes: Never
+IncludeCategories:
+  - Regex: '^<.*>$'
+  - Priority: 1
+  - Regex: '^".*"$'
+  - Priority: 2
+SortIncludes: true
 SpaceBeforeParens: ControlStatements

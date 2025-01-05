@@ -107,7 +107,6 @@ void tfwm_workspace_use_window(char **cmd);
 
 /* ===================== WINDOW FUNCTION ===================== */
 
-static void tfwm_window_raise(xcb_window_t window);
 static void tfwm_window_focus(xcb_window_t window);
 static void tfwm_window_color(xcb_window_t window, uint32_t color);
 static void tfwm_window_move(xcb_window_t window, int x, int y);
