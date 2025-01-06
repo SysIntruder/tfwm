@@ -67,6 +67,18 @@ static xcb_cursor_t tfwm_util_cursor(char *name) {
   return c;
 }
 
+static xcb_atom_t tfwm_util_atom(char *name) {
+  xcb_intern_atom_reply_t *r = xcb_intern_atom_reply(
+      core.c, xcb_intern_atom(core.c, 0, strlen(name), name), NULL
+  );
+  if (!r) {
+    return 0;
+  }
+  xcb_atom_t a = r->atom;
+  free(r);
+  return a;
+}
+
 static char *tfwm_util_window_class(xcb_window_t window) {
   xcb_intern_atom_reply_t *r = xcb_intern_atom_reply(
       core.c, xcb_intern_atom(core.c, 0, strlen("WM_CLASS"), "WM_CLASS"), NULL
@@ -983,7 +995,7 @@ static void tfwm_bar_module_window_tabs() {
   }
 }
 
-static void tfwm_bar_run() {
+static void tfwm_bar() {
   core.bar_l = 0;
   core.bar_r = core.sc->width_in_pixels;
 
@@ -998,6 +1010,96 @@ static void tfwm_bar_run() {
   tfwm_bar_module_window_tabs();
 
   xcb_flush(core.c);
+}
+
+static void tfwm_ewmh_supported(void) {
+  size_t n = ARRAY_LENGTH(TFWM_SUPPORTED_ATOM);
+  xcb_atom_t as[n];
+  for (size_t i = 0; i < n; i++) {
+    as[i] = tfwm_util_atom((char *)TFWM_SUPPORTED_ATOM[i]);
+  }
+
+  xcb_atom_t a = tfwm_util_atom("_NET_SUPPORTED");
+  if (!a) {
+    return;
+  }
+  xcb_change_property(
+      core.c, XCB_PROP_MODE_REPLACE, core.sc->root, a, XCB_ATOM_ATOM, 32, n, as
+  );
+}
+
+static void tfwm_ewmh_desktop_viewport() {
+  xcb_atom_t a = tfwm_util_atom("_NET_DESKTOP_VIEWPORT");
+  if (!a) {
+    return;
+  }
+
+  uint32_t vp[2] = {0, 0};
+  xcb_change_property(
+      core.c, XCB_PROP_MODE_REPLACE, core.sc->root, a, XCB_ATOM_CARDINAL, 32, 2, vp
+  );
+}
+
+static void tfwm_ewmh_current_desktop() {
+  xcb_atom_t a = tfwm_util_atom("_NET_CURRENT_DESKTOP");
+  if (!a) {
+    return;
+  }
+  uint32_t v[1] = {0};
+  xcb_change_property(
+      core.c, XCB_PROP_MODE_REPLACE, core.sc->root, a, XCB_ATOM_CARDINAL, 32, 1, v
+  );
+}
+
+static void tfwm_ewmh_workarea() {
+  xcb_atom_t a = tfwm_util_atom("_NET_WORKAREA");
+  if (!a) {
+    return;
+  }
+  uint32_t v[] = {
+      0,
+      TFWM_BAR_HEIGHT,
+      core.sc->width_in_pixels,
+      core.sc->height_in_pixels - TFWM_BAR_HEIGHT
+  };
+  xcb_change_property(
+      core.c,
+      XCB_PROP_MODE_REPLACE,
+      core.sc->root,
+      a,
+      XCB_ATOM_CARDINAL,
+      32,
+      ARRAY_LENGTH(v),
+      v
+  );
+}
+
+static void tfwm_ewmh_supporting_wm_check(xcb_window_t wid) {
+  xcb_atom_t a1 = tfwm_util_atom("_NET_SUPPORTING_WM_CHECK");
+  if (!a1) {
+    return;
+  }
+  xcb_change_property(
+      core.c, XCB_PROP_MODE_REPLACE, core.sc->root, a1, XCB_ATOM_WINDOW, 32, 1, &wid
+  );
+  xcb_change_property(
+      core.c, XCB_PROP_MODE_REPLACE, wid, a1, XCB_ATOM_WINDOW, 32, 1, &wid
+  );
+
+  xcb_atom_t a2 = tfwm_util_atom("_NET_WM_NAME");
+  if (!a2) {
+    return;
+  }
+  xcb_change_property(
+      core.c,
+      XCB_PROP_MODE_REPLACE,
+      wid,
+      a2,
+      XCB_ATOM_STRING,
+      8,
+      strlen(TFWM_NAME),
+      TFWM_NAME
+  );
 }
 
 static void tfwm_ewmh() {
@@ -1018,50 +1120,11 @@ static void tfwm_ewmh() {
       NULL
   );
 
-  xcb_intern_atom_reply_t *sc = xcb_intern_atom_reply(
-      core.c,
-      xcb_intern_atom(
-          core.c, 0, strlen("_NET_SUPPORTING_WM_CHECK"), "_NET_SUPPORTING_WM_CHECK"
-      ),
-      NULL
-  );
-  if (!sc) {
-    return;
-  }
-  xcb_change_property(
-      core.c,
-      XCB_PROP_MODE_REPLACE,
-      core.sc->root,
-      sc->atom,
-      XCB_ATOM_WINDOW,
-      32,
-      1,
-      &wid
-  );
-  xcb_change_property(
-      core.c, XCB_PROP_MODE_REPLACE, wid, sc->atom, XCB_ATOM_WINDOW, 32, 1, &wid
-  );
-  free(sc);
-
-  xcb_intern_atom_reply_t *wn = xcb_intern_atom_reply(
-      core.c,
-      xcb_intern_atom(core.c, 0, strlen("_NET_WM_NAME"), "_NET_WM_NAME"),
-      NULL
-  );
-  if (!wn) {
-    return;
-  }
-  xcb_change_property(
-      core.c,
-      XCB_PROP_MODE_REPLACE,
-      wid,
-      wn->atom,
-      XCB_ATOM_STRING,
-      8,
-      strlen(TFWM_NAME),
-      TFWM_NAME
-  );
-  free(wn);
+  tfwm_ewmh_supported();
+  tfwm_ewmh_desktop_viewport();
+  tfwm_ewmh_current_desktop();
+  tfwm_ewmh_workarea();
+  tfwm_ewmh_supporting_wm_check(wid);
 }
 
 static void tfwm_init(void) {
@@ -1213,7 +1276,7 @@ int main(int argc, char *argv[]) {
     core.exit = tfwm_handle_event();
 
     if (core.sc) {
-      tfwm_bar_run();
+      tfwm_bar();
     }
   }
 

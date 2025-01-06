@@ -73,6 +73,7 @@ static void tfwm_util_log(char *log, int exit);
 static xcb_keycode_t *tfwm_util_keycodes(xcb_keysym_t keysym);
 static xcb_keysym_t tfwm_util_keysym(xcb_keycode_t keycode);
 static xcb_cursor_t tfwm_util_cursor(char *name);
+static xcb_atom_t tfwm_util_atom(char *name);
 static char *tfwm_util_window_class(xcb_window_t window);
 static int tfwm_util_text_width(char *text);
 static void tfwm_util_cleanup(void);
@@ -131,10 +132,14 @@ static void tfwm_bar_module_layout(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_separator(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_workspace(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_wm_info(void (*render)(xcb_gcontext_t, char *));
-static void tfwm_bar_module_window();
-static void tfwm_bar_run();
+static void tfwm_bar_module_window(void);
+static void tfwm_bar(void);
 
-static void tfwm_ewmh();
+static void tfwm_ewmh_supported(void);
+static void tfwm_ewmh_desktop_viewport();
+static void tfwm_ewmh_supporting_wm_check(xcb_window_t wid);
+static void tfwm_ewmh(void);
+
 static void tfwm_init(void);
 
 static tfwm_event_handler_t event_handlers[] = {
@@ -153,5 +158,12 @@ static tfwm_event_handler_t event_handlers[] = {
 static const int TFWM_WIN_LIST_ALLOC = 5;
 static const char *TFWM_NAME = "tfwm";
 static const char *TFWM_VERSION = "0.0.1";
+static const char *TFWM_SUPPORTED_ATOM[] = {
+    "_NET_WM_NAME",
+    "_NET_WM_STATE",
+    "_NET_WM_WINDOW_TYPE",
+    "_NET_ACTIVE_WINDOW",
+    "_NET_SUPPORTED",
+};
 
 #endif  // !TFWM_H
