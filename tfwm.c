@@ -310,7 +310,7 @@ void tfwm_window_to_workspace(char **cmd) {
   if (0 == core.cur_win) {
     return;
   }
-  if ((core.cur_win) == core.sc->root) {
+  if ((core.win) == core.sc->root) {
     return;
   }
 
@@ -486,7 +486,7 @@ static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int w, int h
   if (0 == core.cur_win) {
     return;
   }
-  if ((core.cur_win) == core.sc->root) {
+  if ((core.win) == core.sc->root) {
     return;
   }
 
@@ -723,6 +723,9 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
   if (0 == core.win) {
     return;
   }
+  if ((core.win) == core.sc->root) {
+    return;
+  }
   if (TFWM_LAYOUT_FLOATING != core.ws_list[core.cur_ws].layout) {
     return;
   }
@@ -905,7 +908,7 @@ static void tfwm_bar_module_window_tabs() {
   if (0 == core.win) {
     return;
   }
-  if ((core.cur_win) == core.sc->root) {
+  if ((core.win) == core.sc->root) {
     return;
   }
   tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
