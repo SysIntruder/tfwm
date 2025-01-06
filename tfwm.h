@@ -137,6 +137,8 @@ static void tfwm_bar(void);
 
 static void tfwm_ewmh_supported(void);
 static void tfwm_ewmh_desktop_viewport();
+static void tfwm_ewmh_current_desktop();
+static void tfwm_ewmh_workarea();
 static void tfwm_ewmh_supporting_wm_check(xcb_window_t wid);
 static void tfwm_ewmh(void);
 
