@@ -4,21 +4,13 @@
 #include <stdlib.h>
 #include <xcb/xproto.h>
 
-/* ========================= SYS CFG ========================= */
-
-static const int TFWM_WIN_LIST_ALLOC = 5;
-static const char *TFWM_NAME = "tfwm";
-static const char *TFWM_VERSION = "0.0.1";
-
-/* ========================== ENUMS ========================== */
+#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 enum {
   TFWM_LAYOUT_TILING,
   TFWM_LAYOUT_FLOATING,
   TFWM_LAYOUT_WINDOW,
 };
-
-/* ========================= TYPEDEF ========================= */
 
 typedef struct {
   uint8_t is_fullscreen;
@@ -52,20 +44,20 @@ typedef struct {
 } tfwm_keybind_t;
 
 typedef struct {
-  uint32_t request;
+  uint32_t req;
   void (*func)(xcb_generic_event_t *evt);
 } tfwm_event_handler_t;
 
 typedef struct {
-  xcb_connection_t *conn;
-  xcb_screen_t *screen;
+  xcb_connection_t *c;
+  xcb_screen_t *sc;
   xcb_window_t win;
   xcb_window_t bar;
   xcb_font_t font;
   xcb_gcontext_t gc_active;
   xcb_gcontext_t gc_inactive;
-  int bar_left;
-  int bar_right;
+  int bar_l;
+  int bar_r;
   int ptr_x;
   int ptr_y;
   int exit;
@@ -77,8 +69,6 @@ typedef struct {
   tfwm_workspace_t *ws_list;
 } tfwm_xcb_t;
 
-/* ========================== UTILS ========================== */
-
 static void tfwm_util_log(char *log, int exit);
 static xcb_keycode_t *tfwm_util_keycodes(xcb_keysym_t keysym);
 static xcb_keysym_t tfwm_util_keysym(xcb_keycode_t keycode);
@@ -86,8 +76,6 @@ static xcb_cursor_t tfwm_util_cursor(char *name);
 static char *tfwm_util_window_class(xcb_window_t window);
 static int tfwm_util_text_width(char *text);
 static void tfwm_util_cleanup(void);
-
-/* ========================= COMMAND ========================= */
 
 void tfwm_exit(char **cmd);
 
@@ -107,15 +95,11 @@ void tfwm_workspace_use_tiling(char **cmd);
 void tfwm_workspace_use_floating(char **cmd);
 void tfwm_workspace_use_window(char **cmd);
 
-/* ===================== WINDOW FUNCTION ===================== */
-
 static void tfwm_window_focus(xcb_window_t window);
 static void tfwm_window_color(xcb_window_t window, uint32_t color);
 static void tfwm_window_move(xcb_window_t window, int x, int y);
 static void tfwm_window_resize(xcb_window_t window, int w, int h);
 static void tfwm_window_set_attr(xcb_window_t window, int x, int y, int w, int h);
-
-/* =================== WORKSPACE FUNCTION ==================== */
 
 static void tfwm_workspace_window_unmap(uint32_t wsid);
 static void tfwm_workspace_window_map(uint32_t wsid);
@@ -124,13 +108,9 @@ static void tfwm_workspace_window_realloc(uint32_t wsid);
 static void tfwm_workspace_window_append(uint32_t wsid, tfwm_window_t window);
 static void tfwm_workspace_window_pop(uint32_t wid);
 
-/* ===================== LAYOUT FUNCTION ===================== */
-
 static void tfwm_layout_apply_tiling(uint32_t wsid);
 static void tfwm_layout_apply_window(uint32_t wsid);
 static void tfwm_layout_update(uint32_t wsid);
-
-/* ====================== EVENT HANDLER ====================== */
 
 void tfwm_handle_keypress(xcb_generic_event_t *event);
 void tfwm_handle_map_request(xcb_generic_event_t *event);
@@ -145,8 +125,6 @@ void tfwm_handle_button_release(xcb_generic_event_t *event);
 
 static int tfwm_handle_event(void);
 
-/* =========================== BAR =========================== */
-
 static void tfwm_bar_render_left(xcb_gcontext_t gc, char *text);
 static void tfwm_bar_render_right(xcb_gcontext_t gc, char *text);
 static void tfwm_bar_module_layout(void (*render)(xcb_gcontext_t, char *));
@@ -156,7 +134,8 @@ static void tfwm_bar_module_wm_info(void (*render)(xcb_gcontext_t, char *));
 static void tfwm_bar_module_window();
 static void tfwm_bar_run();
 
-/* ======================= VARIABLES ========================= */
+static void tfwm_ewmh();
+static void tfwm_init(void);
 
 static tfwm_event_handler_t event_handlers[] = {
     {XCB_KEY_PRESS, tfwm_handle_keypress},
@@ -171,10 +150,8 @@ static tfwm_event_handler_t event_handlers[] = {
     {XCB_BUTTON_RELEASE, tfwm_handle_button_release},
     {XCB_NONE, NULL},
 };
-
-/* ========================== SETUP ========================== */
-
-static void tfwm_ewmh();
-static void tfwm_init(void);
+static const int TFWM_WIN_LIST_ALLOC = 5;
+static const char *TFWM_NAME = "tfwm";
+static const char *TFWM_VERSION = "0.0.1";
 
 #endif  // !TFWM_H
