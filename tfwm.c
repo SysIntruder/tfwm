@@ -307,6 +307,12 @@ void tfwm_window_to_workspace(char **cmd) {
   if (0 == ok) {
     return;
   }
+  if (0 == core.cur_win) {
+    return;
+  }
+  if ((core.cur_win) == core.sc->root) {
+    return;
+  }
 
   tfwm_workspace_window_append(
       wsid, core.ws_list[core.cur_ws].win_list[core.cur_win]
