@@ -35,10 +35,10 @@ static void tfwm_util_log(char *log, int exit) {
 
   time_t t = time(NULL);
   struct tm *now = localtime(&t);
-  char timestamp[20];
-  strftime(timestamp, 20, "%Y-%m-%d %H:%M:%S", now);
+  char tstmp[20];
+  strftime(tstmp, 20, "%Y-%m-%d %H:%M:%S", now);
 
-  fprintf(file, "[%s] %s\n", timestamp, log);
+  fprintf(file, "[%s] %s\n", tstmp, log);
   fclose(file);
   core.exit = exit;
 }
@@ -169,7 +169,7 @@ void tfwm_window_kill(char **cmd) {
     return;
   }
 
-  xcb_window_t target = core.win;
+  xcb_window_t tgt = core.win;
   tfwm_workspace_window_pop(core.cur_win);
   tfwm_workspace_t *ws = &core.ws_list[core.cur_ws];
   if (ws->win_len == 0) {
@@ -183,7 +183,7 @@ void tfwm_window_kill(char **cmd) {
     tfwm_layout_apply_tiling(core.cur_ws);
   }
   xcb_flush(core.c);
-  xcb_kill_client(core.c, target);
+  xcb_kill_client(core.c, tgt);
 }
 
 void tfwm_window_next(char **cmd) {
@@ -248,17 +248,16 @@ void tfwm_window_swap_last(char **cmd) {
   if (0 == ok) {
     return;
   }
-  uint32_t last_id = ws->win_len - 1;
-  if ((wid) == last_id) {
+  uint32_t last = ws->win_len - 1;
+  if ((wid) == last) {
     return;
   }
-  xcb_window_t last = ws->win_list[last_id].win;
-  if (core.win == last) {
+  if (core.win == ws->win_list[last].win) {
     return;
   }
 
-  ws->win_list[last_id].win = core.win;
-  ws->win_list[wid].win = last;
+  ws->win_list[last].win = core.win;
+  ws->win_list[wid].win = ws->win_list[last].win;
   if (TFWM_LAYOUT_TILING == ws->layout) {
     tfwm_layout_apply_tiling(core.cur_ws);
   }
@@ -443,8 +442,8 @@ static void tfwm_window_focus(xcb_window_t window) {
       }
     }
 
-    uint32_t vals[1] = {XCB_STACK_MODE_ABOVE};
-    xcb_configure_window(core.c, core.win, XCB_CONFIG_WINDOW_STACK_MODE, vals);
+    uint32_t vs[1] = {XCB_STACK_MODE_ABOVE};
+    xcb_configure_window(core.c, core.win, XCB_CONFIG_WINDOW_STACK_MODE, vs);
   }
   xcb_clear_area(core.c, 1, core.bar, 0, 0, 0, 0);
 }
@@ -460,14 +459,14 @@ static void tfwm_window_color(xcb_window_t window, uint32_t color) {
     return;
   }
 
-  uint32_t vals[1] = {color};
-  xcb_change_window_attributes(core.c, window, XCB_CW_BORDER_PIXEL, vals);
+  uint32_t vs[1] = {color};
+  xcb_change_window_attributes(core.c, window, XCB_CW_BORDER_PIXEL, vs);
 }
 
 static void tfwm_window_move(xcb_window_t window, int x, int y) {
-  uint32_t vals[2] = {x, y};
+  uint32_t vs[2] = {x, y};
   xcb_configure_window(
-      core.c, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, vals
+      core.c, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, vs
   );
 }
 
@@ -476,9 +475,9 @@ static void tfwm_window_resize(xcb_window_t window, int w, int h) {
     return;
   }
 
-  uint32_t vals[2] = {w, h};
+  uint32_t vs[2] = {w, h};
   xcb_configure_window(
-      core.c, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, vals
+      core.c, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, vs
   );
 }
 
@@ -539,14 +538,14 @@ static void tfwm_workspace_window_realloc(uint32_t wsid) {
     return;
   }
 
-  tfwm_window_t *new_win = (tfwm_window_t *)realloc(
+  tfwm_window_t *tmp = (tfwm_window_t *)realloc(
       ws->win_list, (ws->win_cap + TFWM_WIN_LIST_ALLOC) * sizeof(tfwm_window_t)
   );
-  if (!new_win) {
+  if (!tmp) {
     return;
   }
 
-  ws->win_list = new_win;
+  ws->win_list = tmp;
   ws->win_cap += TFWM_WIN_LIST_ALLOC;
 }
 
@@ -596,10 +595,10 @@ static void tfwm_layout_apply_tiling(uint32_t wsid) {
     sh = ((core.sc->height_in_pixels - TFWM_BAR_HEIGHT) / (ws->win_len - 1)) -
          (TFWM_BORDER_WIDTH * 2);
   }
-  int last_id = core.ws_list[wsid].win_len - 1;
+  int last = core.ws_list[wsid].win_len - 1;
 
-  for (int i = last_id; i >= 0; i--) {
-    if (i == last_id) {
+  for (int i = last; i >= 0; i--) {
+    if (i == last) {
       ws->win_list[i].x = mx;
       ws->win_list[i].y = my;
       ws->win_list[i].w = mw;
@@ -628,9 +627,9 @@ static void tfwm_layout_apply_window(uint32_t wsid) {
   int y = TFWM_BAR_HEIGHT;
   int w = core.sc->width_in_pixels - (TFWM_BORDER_WIDTH * 2);
   int h = core.sc->height_in_pixels - TFWM_BAR_HEIGHT - (TFWM_BORDER_WIDTH * 2);
-  int last_id = ws->win_len - 1;
+  int last = ws->win_len - 1;
 
-  for (int i = last_id; i >= 0; i--) {
+  for (int i = last; i >= 0; i--) {
     ws->win_list[i].x = x;
     ws->win_list[i].y = y;
     ws->win_list[i].w = w;
@@ -666,30 +665,30 @@ void tfwm_handle_keypress(xcb_generic_event_t *event) {
 void tfwm_handle_map_request(xcb_generic_event_t *event) {
   xcb_map_request_event_t *e = (xcb_map_request_event_t *)event;
 
-  uint32_t vals[5];
-  vals[0] = (core.sc->width_in_pixels / 2) - (TFWM_WINDOW_WIDTH / 2);
-  vals[1] = (core.sc->height_in_pixels / 2) - (TFWM_WINDOW_HEIGHT / 2);
-  vals[2] = TFWM_WINDOW_WIDTH;
-  vals[3] = TFWM_WINDOW_HEIGHT;
-  vals[4] = TFWM_BORDER_WIDTH;
+  uint32_t vs[5];
+  vs[0] = (core.sc->width_in_pixels / 2) - (TFWM_WINDOW_WIDTH / 2);
+  vs[1] = (core.sc->height_in_pixels / 2) - (TFWM_WINDOW_HEIGHT / 2);
+  vs[2] = TFWM_WINDOW_WIDTH;
+  vs[3] = TFWM_WINDOW_HEIGHT;
+  vs[4] = TFWM_BORDER_WIDTH;
   xcb_configure_window(
       core.c,
       e->window,
       XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_WIDTH |
           XCB_CONFIG_WINDOW_HEIGHT | XCB_CONFIG_WINDOW_BORDER_WIDTH,
-      vals
+      vs
   );
-  uint32_t attrvals[1] = {XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE};
-  xcb_change_window_attributes(core.c, e->window, XCB_CW_EVENT_MASK, attrvals);
+  uint32_t atvs[1] = {XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE};
+  xcb_change_window_attributes(core.c, e->window, XCB_CW_EVENT_MASK, atvs);
   xcb_map_window(core.c, e->window);
   xcb_flush(core.c);
 
   tfwm_window_t w;
-  w.x = vals[0];
-  w.y = vals[1];
-  w.w = vals[2];
-  w.h = vals[3];
-  w.b = vals[4];
+  w.x = vs[0];
+  w.y = vs[1];
+  w.w = vs[2];
+  w.h = vs[3];
+  w.b = vs[4];
   w.win = e->window;
   char *wmc = tfwm_util_window_class(e->window);
   w.class = malloc(strlen(wmc) * sizeof(char));
@@ -731,49 +730,48 @@ void tfwm_handle_motion_notify(xcb_generic_event_t *event) {
   }
 
   xcb_motion_notify_event_t *e = (xcb_motion_notify_event_t *)event;
-
-  xcb_query_pointer_reply_t *point = xcb_query_pointer_reply(
+  xcb_query_pointer_reply_t *pt = xcb_query_pointer_reply(
       core.c, xcb_query_pointer(core.c, core.sc->root), NULL
   );
-  if (!point) {
+  if (!pt) {
     return;
   }
 
-  xcb_get_geometry_reply_t *geo =
+  xcb_get_geometry_reply_t *g =
       xcb_get_geometry_reply(core.c, xcb_get_geometry(core.c, core.win), NULL);
-  if (!geo) {
-    free(point);
+  if (!g) {
+    free(pt);
     return;
   }
 
   if ((uint32_t)(BTN_LEFT) == core.cur_btn) {
-    if ((core.ptr_x == point->root_x) && (core.ptr_y == point->root_y)) {
-      free(point);
-      free(geo);
+    if ((core.ptr_x == pt->root_x) && (core.ptr_y == pt->root_y)) {
+      free(pt);
+      free(g);
       return;
     }
 
-    int x = geo->x + point->root_x - core.ptr_x;
-    int y = geo->y + point->root_y - core.ptr_y;
-    core.ptr_x = point->root_x;
-    core.ptr_y = point->root_y;
+    int x = g->x + pt->root_x - core.ptr_x;
+    int y = g->y + pt->root_y - core.ptr_y;
+    core.ptr_x = pt->root_x;
+    core.ptr_y = pt->root_y;
     tfwm_window_move(core.win, x, y);
   } else if ((uint32_t)(BTN_RIGHT) == core.cur_btn) {
-    if ((point->root_x <= geo->x) || (point->root_y <= geo->y)) {
-      free(point);
-      free(geo);
+    if ((pt->root_x <= g->x) || (pt->root_y <= g->y)) {
+      free(pt);
+      free(g);
       return;
     }
 
-    int w = geo->width + (point->root_x - core.ptr_x);
-    int h = geo->height + (point->root_y - core.ptr_y);
-    core.ptr_x = point->root_x;
-    core.ptr_y = point->root_y;
+    int w = g->width + (pt->root_x - core.ptr_x);
+    int h = g->height + (pt->root_y - core.ptr_y);
+    core.ptr_x = pt->root_x;
+    core.ptr_y = pt->root_y;
     tfwm_window_resize(core.win, w, h);
   }
 
-  free(point);
-  free(geo);
+  free(pt);
+  free(g);
 }
 
 void tfwm_handle_destroy_notify(xcb_generic_event_t *event) {
@@ -790,11 +788,11 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
 
   core.cur_btn =
       ((e->detail == BTN_LEFT) ? BTN_LEFT : ((core.win != 0) ? BTN_RIGHT : 0));
-  xcb_cursor_t cursor = XCB_NONE;
+  xcb_cursor_t csr = XCB_NONE;
   if ((uint32_t)BTN_LEFT == core.cur_btn) {
-    cursor = tfwm_util_cursor((char *)TFWM_CURSOR_MOVE);
+    csr = tfwm_util_cursor((char *)TFWM_CURSOR_MOVE);
   } else if ((uint32_t)BTN_RIGHT == core.cur_btn) {
-    cursor = tfwm_util_cursor((char *)TFWM_CURSOR_RESIZE);
+    csr = tfwm_util_cursor((char *)TFWM_CURSOR_RESIZE);
   }
   xcb_grab_pointer(
       core.c,
@@ -805,20 +803,20 @@ void tfwm_handle_button_press(xcb_generic_event_t *event) {
       XCB_GRAB_MODE_ASYNC,
       XCB_GRAB_MODE_ASYNC,
       core.sc->root,
-      cursor,
+      csr,
       XCB_CURRENT_TIME
   );
 }
 
 void tfwm_handle_button_release(xcb_generic_event_t *event) {
-  xcb_get_geometry_reply_t *geo =
+  xcb_get_geometry_reply_t *g =
       xcb_get_geometry_reply(core.c, xcb_get_geometry(core.c, core.win), NULL);
-  if (!geo) {
+  if (!g) {
     return;
   }
 
-  tfwm_window_set_attr(core.win, geo->x, geo->y, geo->width, geo->height);
-  free(geo);
+  tfwm_window_set_attr(core.win, g->x, g->y, g->width, g->height);
+  free(g);
   xcb_ungrab_pointer(core.c, XCB_CURRENT_TIME);
 
   return;
@@ -879,12 +877,12 @@ static void tfwm_bar_module_separator(void (*render)(xcb_gcontext_t, char *)) {
 
 static void tfwm_bar_module_workspace(void (*render)(xcb_gcontext_t, char *)) {
   for (uint32_t i = 0; i < core.ws_len; i++) {
-    size_t len = strlen(core.ws_list[i].name);
-    char ws[len + 3];
+    size_t n = strlen(core.ws_list[i].name);
+    char ws[n + 3];
     ws[0] = ' ';
-    memcpy(ws + 1, core.ws_list[i].name, len);
-    ws[len + 1] = ' ';
-    ws[len + 2] = '\0';
+    memcpy(ws + 1, core.ws_list[i].name, n);
+    ws[n + 1] = ' ';
+    ws[n + 2] = '\0';
     if (i == core.cur_ws) {
       render(core.gc_active, ws);
     } else {
@@ -918,21 +916,21 @@ static void tfwm_bar_module_window_tabs() {
 
   char *p_sign = "< ";
   char *n_sign = " >";
-  int p_sign_width = tfwm_util_text_width(p_sign);
-  int n_sign_width = tfwm_util_text_width(n_sign);
-  int sep_width = tfwm_util_text_width(" ");
-  int max_width = core.bar_r - (core.bar_l + p_sign_width + n_sign_width);
-  int n = tfwm_util_text_width(ws->win_list[core.cur_win].class) + (2 * sep_width);
+  int p_sign_w = tfwm_util_text_width(p_sign);
+  int n_sign_w = tfwm_util_text_width(n_sign);
+  int sep_w = tfwm_util_text_width(" ");
+  int max = core.bar_r - (core.bar_l + p_sign_w + n_sign_w);
+  int n = tfwm_util_text_width(ws->win_list[core.cur_win].class) + (2 * sep_w);
   int last = ws->win_len - 1;
   int head = core.cur_win > 0 ? core.cur_win - 1 : 0;
   int tail = core.cur_win < last ? core.cur_win + 1 : last;
   int head_done = core.cur_win == head ? 1 : 0;
   int tail_done = core.cur_win == tail ? 1 : 0;
 
-  while (n < max_width) {
+  while (n < max) {
     if (head >= 0 && !head_done) {
-      n += tfwm_util_text_width(ws->win_list[head].class) + (2 * sep_width);
-      if (n >= max_width) {
+      n += tfwm_util_text_width(ws->win_list[head].class) + (2 * sep_w);
+      if (n >= max) {
         tail -= !tail_done ? 1 : 0;
         break;
       } else if (head == 0) {
@@ -943,8 +941,8 @@ static void tfwm_bar_module_window_tabs() {
     }
 
     if (tail <= last && !tail_done) {
-      n += tfwm_util_text_width(ws->win_list[tail].class) + (2 * sep_width);
-      if (n >= max_width) {
+      n += tfwm_util_text_width(ws->win_list[tail].class) + (2 * sep_w);
+      if (n >= max) {
         head += !head_done ? 1 : 0;
         break;
       } else if (tail == last) {
@@ -962,21 +960,21 @@ static void tfwm_bar_module_window_tabs() {
   if (head > 0) {
     tfwm_bar_render_left(core.gc_inactive, p_sign);
   } else {
-    core.bar_l += p_sign_width;
+    core.bar_l += p_sign_w;
   }
   if (tail < last) {
     tfwm_bar_render_right(core.gc_inactive, n_sign);
   } else {
-    core.bar_r -= n_sign_width;
+    core.bar_r -= n_sign_w;
   }
 
   for (int i = head; i <= tail; i++) {
-    size_t len = strlen(ws->win_list[i].class);
-    char c[len + 3];
+    size_t n = strlen(ws->win_list[i].class);
+    char c[n + 3];
     c[0] = ' ';
-    memcpy(c + 1, ws->win_list[i].class, len);
-    c[len + 1] = ' ';
-    c[len + 2] = '\0';
+    memcpy(c + 1, ws->win_list[i].class, n);
+    c[n + 1] = ' ';
+    c[n + 2] = '\0';
     if (i == core.cur_win) {
       tfwm_bar_render_left(core.gc_active, c);
     } else {
@@ -1030,21 +1028,20 @@ static void tfwm_ewmh() {
   if (!sc) {
     return;
   }
-  xcb_atom_t wmcheck = sc->atom;
-  free(sc);
   xcb_change_property(
       core.c,
       XCB_PROP_MODE_REPLACE,
       core.sc->root,
-      wmcheck,
+      sc->atom,
       XCB_ATOM_WINDOW,
       32,
       1,
       &wid
   );
   xcb_change_property(
-      core.c, XCB_PROP_MODE_REPLACE, wid, wmcheck, XCB_ATOM_WINDOW, 32, 1, &wid
+      core.c, XCB_PROP_MODE_REPLACE, wid, sc->atom, XCB_ATOM_WINDOW, 32, 1, &wid
   );
+  free(sc);
 
   xcb_intern_atom_reply_t *wn = xcb_intern_atom_reply(
       core.c,
@@ -1054,26 +1051,25 @@ static void tfwm_ewmh() {
   if (!wn) {
     return;
   }
-  xcb_atom_t wmname = wn->atom;
-  free(wn);
   xcb_change_property(
       core.c,
       XCB_PROP_MODE_REPLACE,
       wid,
-      wmname,
+      wn->atom,
       XCB_ATOM_STRING,
       8,
       strlen(TFWM_NAME),
       TFWM_NAME
   );
+  free(wn);
 }
 
 static void tfwm_init(void) {
-  xcb_cursor_t cursor = tfwm_util_cursor((char *)TFWM_CURSOR_DEFAULT);
+  xcb_cursor_t csr = tfwm_util_cursor((char *)TFWM_CURSOR_DEFAULT);
   uint32_t vals[2] = {
       XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_STRUCTURE_NOTIFY |
           XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE,
-      cursor
+      csr
   };
   xcb_change_window_attributes(
       core.c, core.sc->root, XCB_CW_EVENT_MASK | XCB_CW_CURSOR, vals
@@ -1133,10 +1129,10 @@ static void tfwm_init(void) {
   }
 
   core.bar = xcb_generate_id(core.c);
-  uint32_t bar_vals[3];
-  bar_vals[0] = TFWM_BAR_BACKGROUND;
-  bar_vals[1] = 1;
-  bar_vals[2] = XCB_EVENT_MASK_EXPOSURE;
+  uint32_t bvs[3];
+  bvs[0] = TFWM_BAR_BACKGROUND;
+  bvs[1] = 1;
+  bvs[2] = XCB_EVENT_MASK_EXPOSURE;
   xcb_create_window(
       core.c,
       XCB_COPY_FROM_PARENT,
@@ -1150,7 +1146,7 @@ static void tfwm_init(void) {
       XCB_WINDOW_CLASS_INPUT_OUTPUT,
       core.sc->root_visual,
       XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK,
-      bar_vals
+      bvs
   );
   uint32_t bar_cfg_vals[1] = {XCB_STACK_MODE_ABOVE};
   xcb_configure_window(core.c, core.bar, XCB_CONFIG_WINDOW_STACK_MODE, bar_cfg_vals);
@@ -1161,29 +1157,29 @@ static void tfwm_init(void) {
   xcb_open_font(core.c, core.font, strlen(TFWM_FONT), TFWM_FONT);
 
   core.gc_active = xcb_generate_id(core.c);
-  uint32_t active_vals[3];
-  active_vals[0] = TFWM_BAR_FOREGROUND_ACTIVE;
-  active_vals[1] = TFWM_BAR_BACKGROUND_ACTIVE;
-  active_vals[2] = core.font;
+  uint32_t acvs[3];
+  acvs[0] = TFWM_BAR_FOREGROUND_ACTIVE;
+  acvs[1] = TFWM_BAR_BACKGROUND_ACTIVE;
+  acvs[2] = core.font;
   xcb_create_gc(
       core.c,
       core.gc_active,
       core.bar,
       XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT,
-      active_vals
+      acvs
   );
 
   core.gc_inactive = xcb_generate_id(core.c);
-  uint32_t inactive_vals[3];
-  inactive_vals[0] = TFWM_BAR_FOREGROUND;
-  inactive_vals[1] = TFWM_BAR_BACKGROUND;
-  inactive_vals[2] = core.font;
+  uint32_t invs[3];
+  invs[0] = TFWM_BAR_FOREGROUND;
+  invs[1] = TFWM_BAR_BACKGROUND;
+  invs[2] = core.font;
   xcb_create_gc(
       core.c,
       core.gc_inactive,
       core.bar,
       XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT,
-      inactive_vals
+      invs
   );
 
   tfwm_ewmh();
